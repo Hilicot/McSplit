@@ -10,6 +10,6 @@ for pair in ascii_edgelists/* ; do
     g2="$pair/g2.txt"
     #timeout=3000
     timeout=$(cat "$pair/timeout.txt")
-    ./mcsplit-dal min_max classic -A -t $timeout $g1 $g2 2>&1 | tee "$pair/result-dal.txt"
+    ./mcsplit-dal -A -t $timeout min_max $g1 $g2 2>&1 | tee "$pair/result-dal.txt"
 done 
 python3 /home/porro/telecho/telecho.py marco done
