@@ -1,14 +1,13 @@
 #ifndef MCSPLIT_MCS_H
 #define MCSPLIT_MCS_H
 #include <vector>
-#include "Graph.h"
+#include "graph.h"
 #include "args.h"
 #include "stats.h"
 
 using namespace std;
 
 using gtype = double;
-
 
 struct VtxPair
 {
