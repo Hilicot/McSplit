@@ -1,3 +1,4 @@
+.vscode/
+build/
 ascii_edgelists
-iter
 nohup.out
