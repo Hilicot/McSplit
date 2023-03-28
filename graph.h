@@ -15,6 +15,7 @@ struct Node {
 struct Graph {
     int n;
     std::vector<Node> adjlist;
+    std::vector<std::vector<std::pair<std::pair<unsigned int, unsigned int>, std::vector<int>>>> leaves;
     Graph(unsigned int n);
     unsigned int get(const int u, const int v) const;
     void pack_leaves();
