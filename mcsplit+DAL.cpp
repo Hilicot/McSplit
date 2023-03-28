@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <thread>
 #include "stats.h"
 #include "args.h"
 #include "mcs.h"
@@ -213,14 +214,15 @@ int main(int argc, char **argv)
     struct Graph g1 = readGraph(arguments.filename2, format, arguments.directed,
                                 arguments.edge_labelled, arguments.vertex_labelled);
 
-    //  std::thread timeout_thread;
-    //  std::mutex timeout_mutex;
+    Stats stats_s;
+    Stats *stats = &stats_s;
+    std::thread timeout_thread;
+    std::mutex timeout_mutex;
     std::condition_variable timeout_cv;
-
-    Stats stats;;
+    stats->abort_due_to_timeout.store(false);
 
     bool aborted = false;
-#if 0
+#if 1
     if (0 != arguments.timeout) {
         timeout_thread = std::thread([&] {
                 auto abort_time = std::chrono::steady_clock::now() + std::chrono::seconds(arguments.timeout);
@@ -228,20 +230,21 @@ int main(int argc, char **argv)
                     /* Sleep until either we've reached the time limit,
                      * or we've finished all the work. */
                     std::unique_lock<std::mutex> guard(timeout_mutex);
-                    while (! abort_due_to_timeout.load()) {
+                    while (! stats->abort_due_to_timeout.load()) {
                         if (std::cv_status::timeout == timeout_cv.wait_until(guard, abort_time)) {
                             /* We've woken up, and it's due to a timeout. */
+
                             aborted = true;
                             break;
                         }
                     }
                 }
-                abort_due_to_timeout.store(true);
+                stats->abort_due_to_timeout.store(true);
                 });
     }
 #endif
     //  auto start = std::chrono::steady_clock::now();
-    stats.start = clock();
+    stats->start = clock();
 
     vector<int> g0_deg = calculate_degrees(g0);
     vector<int> g1_deg = calculate_degrees(g1);
@@ -288,7 +291,7 @@ int main(int argc, char **argv)
 #endif
     struct Graph g0_sorted = induced_subgraph(g0, vv0);
     struct Graph g1_sorted = induced_subgraph(g1, vv1);
-    clock_t time_elapsed = clock() - stats.start;
+    clock_t time_elapsed = clock() - stats->start;
     std::cout << "Induced subgraph calculated in " << time_elapsed * 1000 / CLOCKS_PER_SEC << "ms" << endl;
 #if 0
     int idx;
@@ -303,9 +306,9 @@ int main(int argc, char **argv)
     g0_sorted.pack_leaves();
     g1_sorted.pack_leaves();
 
-    stats.start = clock();
+    stats->start = clock();
 
-    vector<VtxPair> solution = mcs(g0_sorted, g1_sorted, &stats);
+    vector<VtxPair> solution = mcs(g0_sorted, g1_sorted, stats);
 
     // Convert to indices from original, unsorted graphs
     for (auto &vtx_pair : solution)
@@ -316,14 +319,14 @@ int main(int argc, char **argv)
 
     // auto stop = std::chrono::steady_clock::now();
     // auto time_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-    time_elapsed = clock() - stats.start;
-    clock_t time_find = stats.bestfind - stats.start;
+    time_elapsed = clock() - stats->start;
+    clock_t time_find = stats->bestfind - stats->start;
     /* Clean up the timeout thread */
-#if 0
+#if 1
     if (timeout_thread.joinable()) {
         {
             std::unique_lock<std::mutex> guard(timeout_mutex);
-            abort_due_to_timeout.store(true);
+            stats->abort_due_to_timeout.store(true);
             timeout_cv.notify_all();
         }
         timeout_thread.join();
@@ -339,14 +342,14 @@ int main(int argc, char **argv)
                 cout << "(" << solution[j].v << " -> " << solution[j].w << ") ";
     cout << std::endl;
 
-    cout << "Nodes:                      " << stats.nodes << endl;
-    cout << "Cut branches:               " << stats.cutbranches << endl;
-    cout << "Conflicts:                    " << stats.conflicts << endl;
+    cout << "Nodes:                      " << stats->nodes << endl;
+    cout << "Cut branches:               " << stats->cutbranches << endl;
+    cout << "Conflicts:                    " << stats->conflicts << endl;
     printf("CPU time (ms):              %15ld\n", time_elapsed * 1000 / CLOCKS_PER_SEC);
     printf("FindBest time (ms):              %15ld\n", time_find * 1000 / CLOCKS_PER_SEC);
 #ifdef Best
-    cout << "Best nodes:                 " << stats.bestnodes << endl;
-    cout << "Best count:                 " << stats.bestcount << endl;
+    cout << "Best nodes:                 " << stats->bestnodes << endl;
+    cout << "Best count:                 " << stats->bestcount << endl;
 #endif
     if (aborted)
         cout << "TIMEOUT" << endl;
