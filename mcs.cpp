@@ -132,7 +132,7 @@ vector<Bidomain> rewardfeed(const vector<Bidomain> &d, int bd_idx, vector<VtxPai
     g1_matched[w] = 1;
 
     int leaves_match_size = 0, v_leaf, w_leaf;
-    for (unsigned int i = 0, j = 0; i < g0.leaves[v].size() && j < g1.leaves[w].size();) {
+    for (unsigned int i = 0, j = 0; i < g0.leaves[v].size() && j < g1.leaves[w].size();){
         if (g0.leaves[v][i].first < g1.leaves[w][j].first)
             i++;
         else if (g0.leaves[v][i].first > g1.leaves[w][j].first)
@@ -262,8 +262,7 @@ vector<Bidomain> rewardfeed(const vector<Bidomain> &d, int bd_idx, vector<VtxPai
     return new_d;
 }
 
-int selectW_index(const vector<int> &arr, const vector<gtype> &rgrade, int start_idx, int len,
-                  const vector<int> &wselected) {
+int selectW_index(const vector<int> &arr, const vector<gtype> &rgrade, int start_idx, int len, const vector<int> &wselected){
     int idx = -1;
     gtype max_g = -1;
     int vtx, best_vtx = INT_MAX;
