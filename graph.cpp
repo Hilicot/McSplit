@@ -22,9 +22,9 @@ Node::Node(unsigned int id, unsigned int label) {
 
 Graph::Graph(unsigned int n) {
     this->n = n;
-
     for (unsigned int i = 0; i < n; ++i)
-        adjlist.push_back(Node(i, 0));
+        adjlist.emplace_back(i, 0);
+    leaves = std::vector<std::vector<std::pair<std::pair<unsigned int, unsigned int>, std::vector<int>>>> (n);
 }
 
 unsigned int Graph::get(const int u, const int v) const {
