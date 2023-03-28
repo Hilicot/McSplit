@@ -45,6 +45,38 @@ unsigned int Graph::get(const int u, const int v) const
     return 0;
 }
 
+void Graph::pack_leaves(){
+    vector<int> deg(this->n, 0);
+
+    for (int i = 0; i < this->n; i++)
+        deg[i] += (int)this->adjlist[i].adjNodes.size();
+
+    for (int u = 0; u < this->n; u++)
+    {
+        for (int v = 0; v < (int)this->adjlist[u].adjNodes.size(); v++)
+            if (deg[v] == 1)
+            {
+                std::pair<unsigned int, unsigned int> labels(1, this->adjlist[v].label);
+                int pos = -1;
+                for (int k = 0;; k++)
+                {
+                    if (k == int(this->leaves[u].size()))
+                    {
+                        this->leaves[u].push_back(std::make_pair(labels, vector<int>()));
+                    }
+                    if (this->leaves[u][k].first == labels)
+                    {
+                        pos = k;
+                        break;
+                    }
+                }
+                //            assert(pos != -1);
+                this->leaves[u][pos].second.push_back(v);
+            }
+        sort(this->leaves[u].begin(), this->leaves[u].end());
+    }
+}
+
 Graph induced_subgraph(struct Graph &g, std::vector<int> vv)
 {
     Graph subg(g.n);
