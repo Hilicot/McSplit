@@ -17,7 +17,7 @@ static void fail(std::string msg) {
 Node::Node(unsigned int id, unsigned int label) {
     this->id = id;
     this->original_id = id;
-    this->label = label;
+    this->label = label; // bidomain label
 }
 
 Graph::Graph(unsigned int n) {
