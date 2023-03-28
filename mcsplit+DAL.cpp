@@ -5,19 +5,12 @@
 #include <iostream>
 #include <set>
 #include <string>
-#include <utility>
 #include <mutex>
-#include <thread>
 #include <condition_variable>
-#include <atomic>
-
 #include <argp.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-#include <assert.h>
 #include "stats.h"
 #include "args.h"
 #include "mcs.h"
