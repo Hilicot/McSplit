@@ -294,8 +294,10 @@ void update_policy_counter(bool reset) {
         policy_switch_counter = 0;
     else {
         policy_switch_counter += 1;
-        if (policy_switch_counter > policy_threshold)
+        if (policy_switch_counter > policy_threshold) {
+            policy_switch_counter = 0;
             current_policy = 1 - current_policy;
+        }
     }
 }
 
