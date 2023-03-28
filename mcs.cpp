@@ -1,7 +1,6 @@
 #include <iostream>
 #include <algorithm>
 #include <set>
-#include <atomic>
 #include "mcs.h"
 
 using namespace std;
@@ -12,8 +11,6 @@ int policy_threshold = 0;
 int current_policy = 1;
 int policy_switch_counter = 0;
 
-
-static std::atomic<bool> abort_due_to_timeout;
 
 void show(const vector<VtxPair> &current, const vector<Bidomain> &domains,
           const vector<int> &left, const vector<int> &right, Stats *stats)
@@ -370,8 +367,8 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
     {
         return;
     }
-    //  if (abort_due_to_timeout)
-    //     return;
+    if (stats->abort_due_to_timeout)
+        return;
     stats->nodes++;
     // if (arguments.verbose) show(current, domains, left, right);
 
@@ -452,12 +449,11 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
     bd.right_len++;
     if (bd.left_len == 0)
         remove_bidomain(domains, bd_idx);
-    solve(g0, g1, V, Q, incumbent, current, g0_matched, g1_matched, domains, left, right, matching_size_goal,stats);
+    solve(g0, g1, V, Q, incumbent, current, g0_matched, g1_matched, domains, left, right, matching_size_goal, stats);
 }
 
 vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats)
 {
-    abort_due_to_timeout.store(false);
     policy_threshold = 2 * std::min(g0.n, g1.n);
 
     vector<int> left;  // the buffer of vertex indices for the left partitions
@@ -514,7 +510,7 @@ vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats)
             auto domains_copy = domains;
             vector<VtxPair> current;
             solve(g0, g1, V, Q, incumbent, current, g0_matched, g1_matched, domains_copy, left_copy, right_copy, goal, stats);
-            if (incumbent.size() == goal || abort_due_to_timeout)
+            if (incumbent.size() == goal || stats->abort_due_to_timeout)
                 break;
             if (!arguments.quiet)
                 cout << "Upper bound: " << goal - 1 << std::endl;
