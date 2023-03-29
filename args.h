@@ -1,6 +1,8 @@
 #ifndef MCSPLITDAL_ARGS_H
 #define MCSPLITDAL_ARGS_H
 
+enum SwapPolicy {NO_SWAP, McSPLIT_SD, McSPLIT_SO, ADAPTIVE} ;
+
 enum Heuristic
 {
     min_max,
@@ -24,6 +26,7 @@ static struct arguments
     char *filename2;
     int timeout;
     int arg_num;
+    SwapPolicy swap_policy;
 } arguments;
 
 

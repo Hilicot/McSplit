@@ -2,3 +2,5 @@
 build/
 ascii_edgelists
 nohup.out
+pairs
+analyze_ascii_edgelists.py

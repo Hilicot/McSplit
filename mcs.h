@@ -6,7 +6,6 @@
 #include "stats.h"
 
 using namespace std;
-
 using gtype = double;
 
 struct VtxPair
