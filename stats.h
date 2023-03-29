@@ -13,6 +13,7 @@ typedef struct Stats {
     int dl = 0;
     clock_t start;
     std::atomic<bool> abort_due_to_timeout;
+    bool swapped_graphs = false;
 } Stats;
 
 #endif //MCSPLITDAL_STATS_H

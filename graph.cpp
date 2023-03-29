@@ -22,6 +22,7 @@ Node::Node(unsigned int id, unsigned int label) {
 
 Graph::Graph(unsigned int n) {
     this->n = n;
+    this->e = -1;
     for (unsigned int i = 0; i < n; ++i)
         adjlist.emplace_back(i, 0);
     leaves = std::vector<std::vector<std::pair<std::pair<unsigned int, unsigned int>, std::vector<int>>>> (n);
@@ -98,6 +99,23 @@ void add_edge(Graph &g, int v, int w, bool directed = false, unsigned int val = 
         // significant bit of its label to 1
         g.adjlist[v].label |= (1u << (BITS_PER_UNSIGNED_INT - 1));
     }
+}
+
+int Graph::computeNumEdges(){
+    int nedges = 0;
+    for (int i=0; i<this->n; i++)
+        nedges += this->adjlist[i].adjNodes.size();
+    this->e = nedges;
+    return nedges;
+}
+
+/**
+ * @return density = 2E / n(n-1)
+ */
+float Graph::computeDensity(){
+    if (this->e < 0)
+        this->computeNumEdges();
+    return 2*float(this->e)/float(this->n*(this->n-1));
 }
 
 struct Graph readDimacsGraph(char *filename, bool directed, bool vertex_labelled) {
@@ -248,7 +266,7 @@ struct Graph readASCIIGraph(char *filename) {
 
         add_edge(g, v1, v2, false, 1);
     }
-
+    g.e = nedges;
     fclose(f);
     return g;
 }
