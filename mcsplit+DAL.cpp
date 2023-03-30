@@ -68,6 +68,7 @@ void set_default_arguments() {
     arguments.timeout = 0;
     arguments.arg_num = 0;
     arguments.swap_policy = McSPLIT_SO;
+    arguments.reward_policy.switch_policy = CHANGE;
 }
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
@@ -220,6 +221,8 @@ int main(int argc, char **argv) {
                                 arguments.edge_labelled, arguments.vertex_labelled);
     struct Graph g1 = readGraph(arguments.filename2, format, arguments.directed,
                                 arguments.edge_labelled, arguments.vertex_labelled);
+
+    arguments.reward_policy.reward_switch_policy_threshold = 2 * std::min(g0.n, g1.n);
 
     Stats stats_s;
     Stats *stats = &stats_s;

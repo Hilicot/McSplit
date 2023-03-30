@@ -7,10 +7,11 @@ using namespace std;
 
 const int short_memory_threshold = 1e5;
 const int long_memory_threshold = 1e9;
-int policy_threshold = 0;
-int current_policy = 1;
-int policy_switch_counter = 0;
 
+struct NewBidomainResult{
+    vector<Bidomain> new_domains;
+    int reward;
+};
 
 void show(const vector<VtxPair> &current, const vector<Bidomain> &domains,
           const vector<int> &left, const vector<int> &right, Stats *stats) {
@@ -36,9 +37,79 @@ void show(const vector<VtxPair> &current, const vector<Bidomain> &domains,
          << std::endl;
 }
 
+void empty_rewards(vector<vector<gtype>> &V, vector<vector<vector<gtype>>> &Q, int n, int m) {
+    V = vector<vector<gtype>>(arguments.reward_policy.reward_policies_num, vector<gtype>(n, 0));
+    Q = vector<vector<vector<gtype>>>(arguments.reward_policy.reward_policies_num,
+                                      vector<vector<gtype>>(n, vector<gtype>(m, 0)));
+}
+
+void randomize_rewards(vector<vector<gtype>> &V, vector<vector<vector<gtype>>> &Q, int n, int m) {
+    // TODO to verify if this is correct
+    /*
+    for (int i = 0; i < arguments.reward_policy.reward_policies_num; i++) {
+        for (int j = 0; j < n; j++) {
+            V[i][j] = (gtype) rand() / RAND_MAX;    // TODO what should be the upper bound? probably very low, so that it decays very fast
+            for (int k = 0; k < m; k++) {
+                Q[i][j][k] = (gtype) rand() / RAND_MAX;
+            }
+        }
+    }*/
+    std::cerr << "Randomize rewards not implemented yet" << std::endl;
+    exit(1);
+}
+
+void
+update_policy_counter(bool restart_counter, vector<vector<gtype>> &V, vector<vector<vector<gtype>>> &Q, int n, int m) {
+    if (restart_counter) { // A better solution was found, reset the counter
+        arguments.reward_policy.policy_switch_counter = 0;
+    } else {    // Increase the policy counter
+        arguments.reward_policy.policy_switch_counter++;
+        if (arguments.reward_policy.policy_switch_counter > arguments.reward_policy.reward_switch_policy_threshold) {
+            arguments.reward_policy.policy_switch_counter = 0;
+            switch (arguments.reward_policy.switch_policy) {
+                case CHANGE:
+                    arguments.reward_policy.current_reward_policy =
+                            (arguments.reward_policy.current_reward_policy + 1) %
+                            arguments.reward_policy.reward_policies_num;
+                case RESET:
+                    empty_rewards(V, Q, n, m);
+                    break;
+                case RANDOM:
+                    randomize_rewards(V, Q, n, m);
+                    break;
+                    // TODO add STEAL policy: when changing, copy the rewards from the previous policy
+            }
+        }
+    }
+}
+
+void update_rewards(const vector<Bidomain> &old_domains, const NewBidomainResult &new_domains_result, vector<vector<gtype>> &V,
+                    vector<vector<vector<gtype>>> &Q, int v, int w, Stats *stats) {
+    for (int p = 0; p < (int)V.size(); ++p){
+        vector<gtype> & lgrades = V[p];
+        vector<gtype> & rgrades = Q[p][v];
+        int to_add = p == 0 ? new_domains_result.new_domains.size() : 0;
+        int reward = new_domains_result.reward;
+        if (reward + to_add > 0)
+        {
+            stats->conflicts++;
+
+            lgrades[v] += reward + to_add;
+            rgrades[w] += reward + to_add;
+
+            if (lgrades[v] > short_memory_threshold)
+                for (int i = 0; i < (int)lgrades.size(); i++)
+                    lgrades[i] = lgrades[i] / 2;
+            if (rgrades[w] > long_memory_threshold)
+                for (int i = 0; i < (int)rgrades.size(); i++)
+                    rgrades[i] = rgrades[i] / 2;
+        }
+    }
+}
+
 int calc_bound(const vector<Bidomain> &domains) {
     int bound = 0;
-    for (const Bidomain &bd : domains) {
+    for (const Bidomain &bd: domains) {
         bound += std::min(bd.left_len, bd.right_len);
     }
     return bound;
@@ -119,14 +190,12 @@ int remove_matched_vertex(vector<int> &arr, int start, int len, const vector<int
 }
 
 // multiway is for directed and/or labelled graphs
-vector<Bidomain> rewardfeed(const vector<Bidomain> &d, int bd_idx, vector<VtxPair> &current, vector<int> &g0_matched,
-                            vector<int> &g1_matched,
-                            vector<int> &left, vector<int> &right, vector<vector<gtype>> &lgrades,
-                            vector<vector<gtype>> &rgrades,
-                            const Graph &g0, const Graph &g1, int v, int w,
-                            bool multiway, Stats *stats) { // 每个domain均分成2个new_domain分别是与当前对应点相连或者不相连
-    //    assert(g0_matched[v] == 0);
-    //    assert(g1_matched[w] == 0);
+NewBidomainResult
+generate_new_domains(const vector<Bidomain> &d, int bd_idx, vector<VtxPair> &current, vector<int> &g0_matched,
+                     vector<int> &g1_matched,
+                     vector<int> &left, vector<int> &right,
+                     const Graph &g0, const Graph &g1, int v, int w,
+                     bool multiway, Stats *stats) {
     current.push_back(VtxPair(v, w));
     g0_matched[v] = 1;
     g1_matched[w] = 1;
@@ -160,12 +229,10 @@ vector<Bidomain> rewardfeed(const vector<Bidomain> &d, int bd_idx, vector<VtxPai
 
     vector<Bidomain> new_d;
     new_d.reserve(d.size());
-    // unsigned int old_bound = current.size() + calc_bound(d)+1;//这里的domain是已经去掉选了的点，但是该点还没纳入current所以+1
-    // unsigned int new_bound(0);
     int l, r, j = -1;
-    int temp = 0, total = 0;
+    int temp, total = 0;
     int unmatched_left_len, unmatched_right_len;
-    for (const Bidomain &old_bd : d) {
+    for (const Bidomain &old_bd: d) {
         j++;
         l = old_bd.l;
         r = old_bd.r;
@@ -179,11 +246,12 @@ vector<Bidomain> rewardfeed(const vector<Bidomain> &d, int bd_idx, vector<VtxPai
         // After these two partitions, left_len and right_len are the lengths of the
         // arrays of vertices with edges from v or w (int the directed case, edges
         // either from or to v or w)
-        int left_len = partition(left, l, unmatched_left_len, g0, v);    // 将与选出来的顶点相连顶点数返回，
-        int right_len = partition(right, r, unmatched_right_len, g1, w); // 并且将相连顶点依次交换到数组前面
+        int left_len = partition(left, l, unmatched_left_len, g0, v);
+        int right_len = partition(right, r, unmatched_right_len, g1, w);
         int left_len_noedge = unmatched_left_len - left_len;
         int right_len_noedge = unmatched_right_len - right_len;
-        // 这里传递v,w选取的下标到bd_idx，j用来计算当前所分domain的下标，这样就能将bound更精确地计算
+
+        // compute reward
         temp = std::min(old_bd.left_len, old_bd.right_len) - std::min(left_len, right_len) -
                std::min(left_len_noedge, right_len_noedge);
         total += temp;
@@ -195,9 +263,9 @@ vector<Bidomain> rewardfeed(const vector<Bidomain> &d, int bd_idx, vector<VtxPai
         cout << "j=" << j << "  idx=" << bd_idx << endl;
         cout << "gl=" << lgrade[v] << " gr=" << rgrade[w] << endl;
 #endif
-        if (left_len_noedge && right_len_noedge) // new_domain存在的条件是同一domain内需要存在与该对应点同时相连，或者同时不相连的点的点
+        if (left_len_noedge && right_len_noedge)
             new_d.push_back({l + left_len, r + right_len, left_len_noedge, right_len_noedge, old_bd.is_adjacent});
-        if (multiway && left_len && right_len) { // 不与顶点相连的顶点
+        if (multiway && left_len && right_len) {
             auto l_begin = std::begin(left) + l;
             auto r_begin = std::begin(right) + r;
             std::sort(l_begin, l_begin + left_len,
@@ -226,26 +294,11 @@ vector<Bidomain> rewardfeed(const vector<Bidomain> &d, int bd_idx, vector<VtxPai
                 }
             }
         } else if (left_len && right_len) {
-            new_d.push_back({l, r, left_len, right_len, true}); // 与顶点相连的顶点 标志为Ture
+            new_d.push_back({l, r, left_len, right_len, true});
         }
     }
-    for (int p = 0; p < (int) lgrades.size(); ++p) {
-        int to_add = p == 0 ? (int) new_d.size() : 0;
-        if (total + to_add > 0) {
-            stats->conflicts++;
 
-            lgrades[p][v] += total + to_add;
-            rgrades[p][w] += total + to_add;
-
-            if (lgrades[p][v] > short_memory_threshold)
-                for (int i = 0; i < g0.n; i++)
-                    lgrades[p][i] = lgrades[p][i] / 2;
-            if (rgrades[p][w] > long_memory_threshold)
-                for (int i = 0; i < g1.n; i++)
-                    rgrades[p][i] = rgrades[p][i] / 2;
-        }
-    }
-#ifdef DEBUG
+#ifdef DEBUG0
     cout << "new domains are " << endl;
     for (const Bidomain &testd : new_d)
     {
@@ -259,7 +312,8 @@ vector<Bidomain> rewardfeed(const vector<Bidomain> &d, int bd_idx, vector<VtxPai
         cout << endl;
     }
 #endif
-    return new_d;
+    NewBidomainResult result = {new_d, total};
+    return result;
 }
 
 int selectW_index(const vector<int> &arr, const vector<gtype> &rgrade, int start_idx, int len,
@@ -290,23 +344,10 @@ void remove_vtx_from_array(vector<int> &arr, int start_idx, int &len, int remove
     std::swap(arr[start_idx + remove_idx], arr[start_idx + len]);
 }
 
-void update_policy_counter(bool reset) {
-    if (reset)
-        policy_switch_counter = 0;
-    else {
-        policy_switch_counter += 1;
-        if (policy_switch_counter > policy_threshold) {
-            policy_switch_counter = 0;
-            current_policy = 1 - current_policy;
-        }
-    }
-}
-
 void remove_bidomain(vector<Bidomain> &domains, int idx) {
     domains[idx] = domains[domains.size() - 1];
     domains.pop_back();
 }
-
 
 void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<vector<vector<gtype>>> &Q,
            vector<VtxPair> &incumbent,
@@ -327,11 +368,11 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
         stats->bestcount = stats->cutbranches + 1;
         stats->bestnodes = stats->nodes;
         // avoid printing size of each iteration if they are too close in time (save log space)
-        if (!arguments.quiet && clock() - stats->bestfind >1000)
+        if (!arguments.quiet && clock() - stats->bestfind > 1000)
             cout << "Incumbent size: " << incumbent.size() << endl;
         stats->bestfind = clock();
 
-        update_policy_counter(true);
+        update_policy_counter(true, V, Q, g0.n, g1.n);
     }
 
     // prune branch if upper bound is too small
@@ -345,11 +386,8 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
         return;
 
     // select bidomain based on heuristic
-    int bd_idx = select_bidomain(domains, left, V[current_policy], current.size());
+    int bd_idx = select_bidomain(domains, left, V[arguments.reward_policy.current_reward_policy], current.size());
     if (bd_idx == -1) { // In the MCCS case, there may be nothing we can branch on
-        //  cout<<endl;
-        //  cout<<endl;
-        //  cout<<"big"<<endl;
         return;
     }
     Bidomain &bd = domains[bd_idx];
@@ -358,20 +396,20 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
     int tmp_idx;
 
     // select vertex v (vertex with max reward)
-    tmp_idx = selectV_index(left, V[current_policy], bd.l, bd.left_len);
+    tmp_idx = selectV_index(left, V[arguments.reward_policy.current_reward_policy], bd.l, bd.left_len);
     v = left[bd.l + tmp_idx];
     remove_vtx_from_array(left, bd.l, bd.left_len, tmp_idx); // remove v from bidomain
-    update_policy_counter(false);   //
+    update_policy_counter(false, V, Q, g0.n, g1.n);
 
     // Try assigning v to each vertex w in the colour class beginning at bd.r, in turn
     vector<int> wselected(g1.n, 0);
     bd.right_len--; //
     for (int i = 0; i <= bd.right_len; i++) {
-        tmp_idx = selectW_index(right, Q[v][current_policy], bd.r, bd.right_len + 1, wselected);
+        tmp_idx = selectW_index(right, Q[arguments.reward_policy.current_reward_policy][v], bd.r, bd.right_len + 1, wselected);
         w = right[bd.r + tmp_idx];
         wselected[w] = 1;
         std::swap(right[bd.r + tmp_idx], right[bd.r + bd.right_len]);
-        update_policy_counter(false);
+        update_policy_counter(false, V, Q, g0.n, g1.n);
 
 #ifdef DEBUG
         cout << "v= " << v << " w= " << w << endl;
@@ -384,14 +422,16 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
         cout << endl;
 #endif
         unsigned int cur_len = current.size();
-        auto new_domains = rewardfeed(domains, bd_idx, current, g0_matched, g1_matched, left, right, V, Q[v], g0, g1, v,
-                                      w,
-                                      arguments.directed || arguments.edge_labelled, stats);
+        auto result = generate_new_domains(domains, bd_idx, current, g0_matched, g1_matched, left, right, g0, g1,
+                                                v, w,
+                                                arguments.directed || arguments.edge_labelled, stats);
+        auto new_domains = result.new_domains;
+        update_rewards(domains, result, V, Q, v, w, stats);
 
         stats->dl++;
         solve(g0, g1, V, Q, incumbent, current, g0_matched, g1_matched, new_domains, left, right, matching_size_goal,
               stats);
-        if(stats->abort_due_to_timeout) // hard timeout (else it gets stuck when trying to end the program gracefully)
+        if (stats->abort_due_to_timeout) // hard timeout (else it gets stuck when trying to end the program gracefully)
             return;
         while (current.size() > cur_len) {
             VtxPair pr = current.back();
@@ -407,24 +447,24 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
 }
 
 vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats) {
-    policy_threshold = 2 * std::min(g0.n, g1.n);
-
     vector<int> left;  // the buffer of vertex indices for the left partitions
     vector<int> right; // the buffer of vertex indices for the right partitions
 
     vector<int> g0_matched(g0.n, 0);
     vector<int> g1_matched(g1.n, 0);
 
-    vector<vector<gtype>> V(2, vector<gtype>(g0.n, 0));
-    vector<vector<vector<gtype>>> Q(g0.n, vector<vector<gtype>>(2, vector<gtype>(g1.n, 0)));
+    vector<vector<gtype>> V;
+    vector<vector<vector<gtype>>> Q;
+
+    empty_rewards(V, Q, g0.n, g1.n);
 
     auto domains = vector<Bidomain>{};
 
     std::set<unsigned int> left_labels;
     std::set<unsigned int> right_labels;
-    for (auto node : g0.adjlist)
+    for (auto node: g0.adjlist)
         left_labels.insert(node.label);
-    for (auto node : g1.adjlist)
+    for (auto node: g1.adjlist)
         right_labels.insert(node.label);
     std::set<unsigned int> labels; // labels that appear in both graphs
     std::set_intersection(std::begin(left_labels),
@@ -434,7 +474,7 @@ vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats) {
                           std::inserter(labels, std::begin(labels)));
 
     // Create a bidomain for each label that appears in both graphs (only one at the start)
-    for (unsigned int label : labels) {
+    for (unsigned int label: labels) {
         int start_l = left.size();
         int start_r = right.size();
 
@@ -477,6 +517,3 @@ vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats) {
 
     return incumbent;
 }
-
-
-
