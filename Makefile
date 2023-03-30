@@ -1,6 +1,6 @@
 CXX := g++
 CXXFLAGS := -O2 -march=native -fopenmp
-all: iter
+all: dal
 
 rec: mcsp_rec.cpp graph.cpp graph.h
 	$(CXX) $(CXXFLAGS) -Wall -std=c++2a -o recur graph.cpp mcsp_rec.cpp test_utility.cpp -pthread

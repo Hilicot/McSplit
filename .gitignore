@@ -3,3 +3,6 @@ iter
 nohup.out
 pairs
 analyze_ascii_edgelists.py
+results
+mcsplit-dal
+run_ascii*
