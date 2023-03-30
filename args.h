@@ -1,12 +1,25 @@
 #ifndef MCSPLITDAL_ARGS_H
 #define MCSPLITDAL_ARGS_H
 
-enum SwapPolicy {NO_SWAP, McSPLIT_SD, McSPLIT_SO, ADAPTIVE} ;
+enum SwapPolicy
+{
+    NO_SWAP,
+    McSPLIT_SD,
+    McSPLIT_SO,
+    ADAPTIVE
+};
 
 enum Heuristic
 {
     min_max,
     min_product
+};
+
+enum RewardSwitchPolicy
+{
+    CHANGE,
+    RESET,
+    RANDOM
 };
 
 static struct arguments
@@ -27,8 +40,12 @@ static struct arguments
     int timeout;
     int arg_num;
     SwapPolicy swap_policy;
+    RewardSwitchPolicy reward_switch_policy;
+    float reward_coefficient;
+    int reward_switch_policy_threshold;
+    int reward_policies_num;
+    int current_reward_policy;
+    int policy_switch_counter;
 } arguments;
 
-
-
-#endif //MCSPLITDAL_ARGS_H
+#endif // MCSPLITDAL_ARGS_H
