@@ -9,8 +9,16 @@ const int short_memory_threshold = 1e5;
 const int long_memory_threshold = 1e9;
 int policy_threshold = 0;
 int current_policy = 1;
+bool zero_restart = false;
+bool random_restart = false;
 int policy_switch_counter = 0;
-
+enum RewardSwitcher
+{
+    CHANGE = 1,
+    RESTART = 2,
+    RANDOM = 3
+};
+RewardSwitcher reward_switch_type = RESTART;
 
 void show(const vector<VtxPair> &current, const vector<Bidomain> &domains,
           const vector<int> &left, const vector<int> &right, Stats *stats) {
@@ -36,7 +44,82 @@ void show(const vector<VtxPair> &current, const vector<Bidomain> &domains,
          << std::endl;
 }
 
-int calc_bound(const vector<Bidomain> &domains) {
+void update_policy_counter(bool reset)
+{
+    if (reset)
+        policy_switch_counter = 0;
+    else
+    {
+        policy_switch_counter += 1;
+        if (policy_switch_counter > policy_threshold)
+        {
+            policy_switch_counter = 0;
+
+            switch (reward_switch_type)
+            {
+            case CHANGE:
+                current_policy = 1 - current_policy;
+            case RESTART:
+                zero_restart = true;
+                break;
+            case RANDOM:
+                random_restart = true;
+                break;
+            }
+        }
+    }
+}
+
+void update_rewards(vector<vector<gtype>> &lgrades, vector<vector<gtype>> &rgrades, int reward, int new_domains_len, Stats *stats, int v, int w)
+{
+    if (zero_restart)
+    {
+        for (int p = 0; p < (int)lgrades.size(); ++p)
+            for (int i = 0; i < (int)lgrades[p].size(); i++)
+                lgrades[p][i] = 0;
+
+        for (int p = 0; p < (int)rgrades.size(); ++p)
+            for (int i = 0; i < (int)rgrades[p].size(); i++)
+                rgrades[p][i] = 0;
+
+        zero_restart = false;
+    }
+
+    if (random_restart)
+    {
+        // TODO RANDOM
+        for (int p = 0; p < (int)lgrades.size(); ++p)
+            for (int i = 0; i < (int)lgrades[p].size(); i++)
+                lgrades[p][i] = 0;
+
+        for (int p = 0; p < (int)rgrades.size(); ++p)
+            for (int i = 0; i < (int)rgrades[p].size(); i++)
+                rgrades[p][i] = 0;
+
+        random_restart = false;
+    }
+
+    for (int p = 0; p < (int)lgrades.size(); ++p)
+    {
+        int to_add = p == 0 ? new_domains_len : 0;
+        if (reward + to_add > 0)
+        {
+            stats->conflicts++;
+
+            lgrades[p][v] += reward + to_add;
+            rgrades[p][w] += reward + to_add;
+
+            if (lgrades[p][v] > short_memory_threshold)
+                for (int i = 0; i < (int)lgrades[p].size(); i++)
+                    lgrades[p][i] = lgrades[p][i] / 2;
+            if (rgrades[p][w] > long_memory_threshold)
+                for (int i = 0; i < (int)rgrades[p].size(); i++)
+                    rgrades[p][i] = rgrades[p][i] / 2;
+        }
+    }
+}
+
+int calc_bound(const vector<Bidomain> &domains){
     int bound = 0;
     for (const Bidomain &bd : domains) {
         bound += std::min(bd.left_len, bd.right_len);
@@ -124,9 +207,7 @@ vector<Bidomain> rewardfeed(const vector<Bidomain> &d, int bd_idx, vector<VtxPai
                             vector<int> &left, vector<int> &right, vector<vector<gtype>> &lgrades,
                             vector<vector<gtype>> &rgrades,
                             const Graph &g0, const Graph &g1, int v, int w,
-                            bool multiway, Stats *stats) { // 每个domain均分成2个new_domain分别是与当前对应点相连或者不相连
-    //    assert(g0_matched[v] == 0);
-    //    assert(g1_matched[w] == 0);
+                            bool multiway, Stats *stats){
     current.push_back(VtxPair(v, w));
     g0_matched[v] = 1;
     g1_matched[w] = 1;
@@ -160,8 +241,6 @@ vector<Bidomain> rewardfeed(const vector<Bidomain> &d, int bd_idx, vector<VtxPai
 
     vector<Bidomain> new_d;
     new_d.reserve(d.size());
-    // unsigned int old_bound = current.size() + calc_bound(d)+1;//这里的domain是已经去掉选了的点，但是该点还没纳入current所以+1
-    // unsigned int new_bound(0);
     int l, r, j = -1;
     int temp = 0, total = 0;
     int unmatched_left_len, unmatched_right_len;
@@ -179,11 +258,11 @@ vector<Bidomain> rewardfeed(const vector<Bidomain> &d, int bd_idx, vector<VtxPai
         // After these two partitions, left_len and right_len are the lengths of the
         // arrays of vertices with edges from v or w (int the directed case, edges
         // either from or to v or w)
-        int left_len = partition(left, l, unmatched_left_len, g0, v);    // 将与选出来的顶点相连顶点数返回，
-        int right_len = partition(right, r, unmatched_right_len, g1, w); // 并且将相连顶点依次交换到数组前面
+        int left_len = partition(left, l, unmatched_left_len, g0, v);
+        int right_len = partition(right, r, unmatched_right_len, g1, w);
         int left_len_noedge = unmatched_left_len - left_len;
         int right_len_noedge = unmatched_right_len - right_len;
-        // 这里传递v,w选取的下标到bd_idx，j用来计算当前所分domain的下标，这样就能将bound更精确地计算
+
         temp = std::min(old_bd.left_len, old_bd.right_len) - std::min(left_len, right_len) -
                std::min(left_len_noedge, right_len_noedge);
         total += temp;
@@ -195,9 +274,9 @@ vector<Bidomain> rewardfeed(const vector<Bidomain> &d, int bd_idx, vector<VtxPai
         cout << "j=" << j << "  idx=" << bd_idx << endl;
         cout << "gl=" << lgrade[v] << " gr=" << rgrade[w] << endl;
 #endif
-        if (left_len_noedge && right_len_noedge) // new_domain存在的条件是同一domain内需要存在与该对应点同时相连，或者同时不相连的点的点
+        if (left_len_noedge && right_len_noedge)
             new_d.push_back({l + left_len, r + right_len, left_len_noedge, right_len_noedge, old_bd.is_adjacent});
-        if (multiway && left_len && right_len) { // 不与顶点相连的顶点
+        if (multiway && left_len && right_len){
             auto l_begin = std::begin(left) + l;
             auto r_begin = std::begin(right) + r;
             std::sort(l_begin, l_begin + left_len,
@@ -226,25 +305,12 @@ vector<Bidomain> rewardfeed(const vector<Bidomain> &d, int bd_idx, vector<VtxPai
                 }
             }
         } else if (left_len && right_len) {
-            new_d.push_back({l, r, left_len, right_len, true}); // 与顶点相连的顶点 标志为Ture
+            new_d.push_back({l, r, left_len, right_len, true});
         }
     }
-    for (int p = 0; p < (int) lgrades.size(); ++p) {
-        int to_add = p == 0 ? (int) new_d.size() : 0;
-        if (total + to_add > 0) {
-            stats->conflicts++;
 
-            lgrades[p][v] += total + to_add;
-            rgrades[p][w] += total + to_add;
+    update_rewards(lgrades, rgrades, total, (int)new_d.size(), stats, v, w);
 
-            if (lgrades[p][v] > short_memory_threshold)
-                for (int i = 0; i < g0.n; i++)
-                    lgrades[p][i] = lgrades[p][i] / 2;
-            if (rgrades[p][w] > long_memory_threshold)
-                for (int i = 0; i < g1.n; i++)
-                    rgrades[p][i] = rgrades[p][i] / 2;
-        }
-    }
 #ifdef DEBUG
     cout << "new domains are " << endl;
     for (const Bidomain &testd : new_d)
@@ -290,23 +356,11 @@ void remove_vtx_from_array(vector<int> &arr, int start_idx, int &len, int remove
     std::swap(arr[start_idx + remove_idx], arr[start_idx + len]);
 }
 
-void update_policy_counter(bool reset) {
-    if (reset)
-        policy_switch_counter = 0;
-    else {
-        policy_switch_counter += 1;
-        if (policy_switch_counter > policy_threshold) {
-            policy_switch_counter = 0;
-            current_policy = 1 - current_policy;
-        }
-    }
-}
-
-void remove_bidomain(vector<Bidomain> &domains, int idx) {
+void remove_bidomain(vector<Bidomain> &domains, int idx)
+{
     domains[idx] = domains[domains.size() - 1];
     domains.pop_back();
 }
-
 
 void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<vector<vector<gtype>>> &Q,
            vector<VtxPair> &incumbent,
@@ -361,7 +415,7 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
     tmp_idx = selectV_index(left, V[current_policy], bd.l, bd.left_len);
     v = left[bd.l + tmp_idx];
     remove_vtx_from_array(left, bd.l, bd.left_len, tmp_idx); // remove v from bidomain
-    update_policy_counter(false);   //
+    update_policy_counter(false);                            //
 
     // Try assigning v to each vertex w in the colour class beginning at bd.r, in turn
     vector<int> wselected(g1.n, 0);
@@ -477,6 +531,3 @@ vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats) {
 
     return incumbent;
 }
-
-
-

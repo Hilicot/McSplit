@@ -20,4 +20,4 @@ for pair in ascii_edgelists/* ; do
     echo $desc >> $outfile
     echo "timeout: $timeout" >> $outfile
 done 
-python3 /home/porro/telecho/telecho.py marco done
+python3 /home/porro/telecho/telecho.py salvo done
