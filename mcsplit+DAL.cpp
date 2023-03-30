@@ -240,7 +240,6 @@ int main(int argc, char **argv) {
                 while (!stats->abort_due_to_timeout.load()) {
                     if (std::cv_status::timeout == timeout_cv.wait_until(guard, abort_time)) {
                         /* We've woken up, and it's due to a timeout. */
-
                         aborted = true;
                         break;
                     }
@@ -255,6 +254,7 @@ int main(int argc, char **argv) {
     if (swap_graphs(g0, g1)) {
         swap(g0, g1);
         stats->swapped_graphs = true;
+        cout << "Swapped graphs" << endl;
     }
 
     //  auto start = std::chrono::steady_clock::now();

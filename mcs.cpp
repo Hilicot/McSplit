@@ -391,6 +391,8 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
         stats->dl++;
         solve(g0, g1, V, Q, incumbent, current, g0_matched, g1_matched, new_domains, left, right, matching_size_goal,
               stats);
+        if(stats->abort_due_to_timeout) // hard timeout (else it gets stuck when trying to end the program gracefully)
+            return;
         while (current.size() > cur_len) {
             VtxPair pr = current.back();
             current.pop_back();
