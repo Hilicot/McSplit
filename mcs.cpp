@@ -37,6 +37,10 @@ void show(const vector<VtxPair> &current, const vector<Bidomain> &domains,
          << std::endl;
 }
 
+void rotate_policy() {
+    arguments.reward_policy.current_reward_policy = (arguments.reward_policy.current_reward_policy + 1) % arguments.reward_policy.reward_policies_num;
+}
+
 void empty_rewards(vector<vector<gtype>> &V, vector<vector<vector<gtype>>> &Q, int n, int m) {
     V = vector<vector<gtype>>(arguments.reward_policy.reward_policies_num, vector<gtype>(n, 0));
     Q = vector<vector<vector<gtype>>>(arguments.reward_policy.reward_policies_num,
@@ -58,6 +62,13 @@ void randomize_rewards(vector<vector<gtype>> &V, vector<vector<vector<gtype>>> &
     exit(1);
 }
 
+void steal_rewards(vector<vector<gtype>> &V, vector<vector<vector<gtype>>> &Q) {
+    int old_policy = arguments.reward_policy.current_reward_policy;
+    rotate_policy();
+    V[arguments.reward_policy.current_reward_policy] = V[old_policy];
+    Q[arguments.reward_policy.current_reward_policy] = Q[old_policy];
+}
+
 void
 update_policy_counter(bool restart_counter, vector<vector<gtype>> &V, vector<vector<vector<gtype>>> &Q, int n, int m) {
     if (restart_counter) { // A better solution was found, reset the counter
@@ -68,16 +79,16 @@ update_policy_counter(bool restart_counter, vector<vector<gtype>> &V, vector<vec
             arguments.reward_policy.policy_switch_counter = 0;
             switch (arguments.reward_policy.switch_policy) {
                 case CHANGE:
-                    arguments.reward_policy.current_reward_policy =
-                            (arguments.reward_policy.current_reward_policy + 1) %
-                            arguments.reward_policy.reward_policies_num;
+                    rotate_policy();
                 case RESET:
                     empty_rewards(V, Q, n, m);
                     break;
                 case RANDOM:
                     randomize_rewards(V, Q, n, m);
                     break;
-                    // TODO add STEAL policy: when changing, copy the rewards from the previous policy
+                case STEAL:
+                    steal_rewards(V, Q);
+                    break;
             }
         }
     }

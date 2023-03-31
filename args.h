@@ -18,7 +18,8 @@ enum Heuristic
 enum RewardSwitchPolicy{
     CHANGE,
     RESET,
-    RANDOM
+    RANDOM,
+    STEAL
 };
 
 enum DAL_RewardPolicy{
