@@ -8,6 +8,13 @@
 using namespace std;
 using gtype = double;
 
+enum MCS 
+{
+    RL,
+    LL,
+    DAL
+};
+
 struct VtxPair
 {
     int v;
