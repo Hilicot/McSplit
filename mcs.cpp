@@ -85,17 +85,40 @@ update_policy_counter(bool restart_counter, vector<vector<gtype>> &V, vector<vec
 
 void update_rewards(const vector<Bidomain> &old_domains, const NewBidomainResult &new_domains_result, vector<vector<gtype>> &V,
                     vector<vector<vector<gtype>>> &Q, int v, int w, Stats *stats) {
+    // for each reward policy
     for (int p = 0; p < (int)V.size(); ++p){
         vector<gtype> & lgrades = V[p];
         vector<gtype> & rgrades = Q[p][v];
-        int to_add = p == 0 ? new_domains_result.new_domains.size() : 0;
         int reward = new_domains_result.reward;
-        if (reward + to_add > 0)
-        {
+        const vector<Bidomain> &new_domains = new_domains_result.new_domains;
+
+        // if current policy is DAL, add the DAL reward (can be negative!)
+        int dal_reward = 0;
+        if (p==0) {
+            if (arguments.reward_policy.dal_reward_policy == DAL_REWARD_MAX_NUM_DOMAINS)
+                dal_reward = new_domains.size();
+            else if (arguments.reward_policy.dal_reward_policy  == DAL_REWARD_MIN_MAX_DOMAIN_SIZE) {
+                auto max_bidomain = std::max_element(new_domains.begin(), new_domains.end(),
+                                                     [](const Bidomain &bd1, const Bidomain &bd2) {
+                                                         return bd1.get_max_len() < bd2.get_max_len();
+                                                     });
+                dal_reward = - max_bidomain->get_max_len()/100; // partial rounding + normalization (to remove?)
+            }
+            else if (arguments.reward_policy.dal_reward_policy == DAL_REWARD_MIN_AVG_DOMAIN_SIZE){
+                int total = 0;
+                for (const Bidomain &bd: new_domains) {
+                    total += bd.get_max_len();
+                }
+                dal_reward = - total/new_domains.size()/100; // partial rounding + normalization (to remove?)
+            }
+        }
+
+        // update rewards
+        if (reward > 0){
             stats->conflicts++;
 
-            lgrades[v] += reward + to_add;
-            rgrades[w] += reward + to_add;
+            lgrades[v] += reward + dal_reward;
+            rgrades[w] += reward + dal_reward;
 
             if (lgrades[v] > short_memory_threshold)
                 for (int i = 0; i < (int)lgrades.size(); i++)

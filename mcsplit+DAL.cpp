@@ -39,17 +39,18 @@ static void fail(std::string msg) {
 static char doc[] = "Find a maximum clique in a graph in DIMACS format\vHEURISTIC can be min_max or min_product";
 static char args_doc[] = "HEURISTIC FILENAME1 FILENAME2";
 static struct argp_option options[] = {
-        {"quiet",                'q', 0,         0, "Quiet output"},
-        {"verbose",              'v', 0,         0, "Verbose output"},
-        {"dimacs",               'd', 0,         0, "Read DIMACS format"},
-        {"lad",                  'l', 0,         0, "Read LAD format"},
-        {"ascii",                'A', 0,         0, "Read ASCII format"},
-        {"connected",            'c', 0,         0, "Solve max common CONNECTED subgraph problem"},
-        {"directed",             'i', 0,         0, "Use directed graphs"},
-        {"labelled",             'a', 0,         0, "Use edge and vertex labels"},
-        {"vertex-labelled-only", 'x', 0,         0, "Use vertex labels, but not edge labels"},
-        {"big-first",            'b', 0,         0, "First try to find an induced subgraph isomorphism, then decrement the target size"},
-        {"timeout",              't', "timeout", 0, "Specify a timeout (seconds)"},
+        {"quiet",                'q', 0,                    0, "Quiet output"},
+        {"verbose",              'v', 0,                    0, "Verbose output"},
+        {"dimacs",               'd', 0,                    0, "Read DIMACS format"},
+        {"lad",                  'l', 0,                    0, "Read LAD format"},
+        {"ascii",                'A', 0,                    0, "Read ASCII format"},
+        {"connected",            'c', 0,                    0, "Solve max common CONNECTED subgraph problem"},
+        {"directed",             'i', 0,                    0, "Use directed graphs"},
+        {"labelled",             'a', 0,                    0, "Use edge and vertex labels"},
+        {"vertex-labelled-only", 'x', 0,                    0, "Use vertex labels, but not edge labels"},
+        {"big-first",            'b', 0,                    0, "First try to find an induced subgraph isomorphism, then decrement the target size"},
+        {"timeout",              't', "timeout",            0, "Specify a timeout (seconds)"},
+        {"dal_reward_policy",    'D', "dal_reward_policy",  0, "Specify the dal reward policy (num, max, avg)"},
         {0}};
 
 void set_default_arguments() {
@@ -69,6 +70,7 @@ void set_default_arguments() {
     arguments.arg_num = 0;
     arguments.swap_policy = McSPLIT_SO;
     arguments.reward_policy.switch_policy = CHANGE;
+    arguments.reward_policy.dal_reward_policy = DAL_REWARD_MAX_NUM_DOMAINS;
 }
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
@@ -119,6 +121,16 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             break;
         case 't':
             arguments.timeout = std::stoi(arg);
+            break;
+        case 'D':
+            if(string(arg) == "num")
+                arguments.reward_policy.dal_reward_policy = DAL_REWARD_MAX_NUM_DOMAINS;
+            else if(string(arg) == "max")
+                arguments.reward_policy.dal_reward_policy = DAL_REWARD_MIN_MAX_DOMAIN_SIZE;
+            else if(string(arg) == "avg")
+                arguments.reward_policy.dal_reward_policy = DAL_REWARD_MIN_AVG_DOMAIN_SIZE;
+            else
+                fail("Unknown dal reward policy (try num, max, avg)");
             break;
         case ARGP_KEY_ARG:
             if (arguments.arg_num == 0) {

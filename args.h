@@ -15,11 +15,16 @@ enum Heuristic
     min_product
 };
 
-enum RewardSwitchPolicy
-{
+enum RewardSwitchPolicy{
     CHANGE,
     RESET,
     RANDOM
+};
+
+enum DAL_RewardPolicy{
+    DAL_REWARD_MAX_NUM_DOMAINS,
+    DAL_REWARD_MIN_MAX_DOMAIN_SIZE,
+    DAL_REWARD_MIN_AVG_DOMAIN_SIZE,
 };
 
 struct RewardPolicy
@@ -30,6 +35,7 @@ struct RewardPolicy
     int reward_policies_num;
     int current_reward_policy;
     int policy_switch_counter;
+    DAL_RewardPolicy dal_reward_policy;
     RewardPolicy() : reward_coefficient(1.0), reward_switch_policy_threshold(0), reward_policies_num(2), current_reward_policy(0), policy_switch_counter(0) {}
 };
 
