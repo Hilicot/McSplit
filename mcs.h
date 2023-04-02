@@ -25,6 +25,7 @@ struct Bidomain
                                                                             left_len(left_len),
                                                                             right_len(right_len),
                                                                             is_adjacent(is_adjacent){};
+    int get_max_len() const { return max(left_len, right_len); }
 };
 
 vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats);
