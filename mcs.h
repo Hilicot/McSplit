@@ -8,13 +8,6 @@
 using namespace std;
 using gtype = double;
 
-enum MCS 
-{
-    RL,
-    LL,
-    DAL
-};
-
 struct VtxPair
 {
     int v;
@@ -33,6 +26,11 @@ struct Bidomain
                                                                             right_len(right_len),
                                                                             is_adjacent(is_adjacent){};
     int get_max_len() const { return max(left_len, right_len); }
+};
+
+struct NewBidomainResult{
+    vector<Bidomain> new_domains;
+    int reward;
 };
 
 vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats);

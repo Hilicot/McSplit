@@ -68,7 +68,9 @@ void set_default_arguments() {
     arguments.filename2 = NULL;
     arguments.timeout = 0;
     arguments.arg_num = 0;
-    arguments.swap_policy = McSPLIT_SO;
+    arguments.mcs_method = LL_DAL;
+    arguments.swap_policy = McSPLIT_SD;
+    arguments.reward_policy.current_reward_policy = 1; // set starting policy (0:RL/LL, 1:DAL)
     arguments.reward_policy.switch_policy = CHANGE;
     arguments.reward_policy.dal_reward_policy = DAL_REWARD_MAX_NUM_DOMAINS;
 }
@@ -336,7 +338,7 @@ int main(int argc, char **argv) {
     g0_sorted.pack_leaves();
     g1_sorted.pack_leaves();
 
-    stats->start = clock();
+    // clock is started inside mcs (to avoid counting time spent in initialization
 
     vector<VtxPair> solution = mcs(g0_sorted, g1_sorted, stats);
 

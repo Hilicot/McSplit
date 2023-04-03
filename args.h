@@ -37,7 +37,11 @@ struct RewardPolicy
     int current_reward_policy;
     int policy_switch_counter;
     DAL_RewardPolicy dal_reward_policy;
-    RewardPolicy() : reward_coefficient(1.0), reward_switch_policy_threshold(0), reward_policies_num(2), current_reward_policy(0), policy_switch_counter(0) {}
+    RewardPolicy() : reward_coefficient(1.0), reward_switch_policy_threshold(0), reward_policies_num(2), current_reward_policy(1), policy_switch_counter(0) {}
+};
+
+enum MCS{
+    RL_DAL, LL_DAL
 };
 
 static struct arguments{
@@ -52,6 +56,7 @@ static struct arguments{
     bool vertex_labelled;
     bool big_first;
     Heuristic heuristic;
+    MCS mcs_method;
     char *filename1;
     char *filename2;
     int timeout;

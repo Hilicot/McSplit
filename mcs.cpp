@@ -2,16 +2,12 @@
 #include <algorithm>
 #include <set>
 #include "mcs.h"
+#include "reward.h"
 
 using namespace std;
 
 const int short_memory_threshold = 1e5;
 const int long_memory_threshold = 1e9;
-
-struct NewBidomainResult{
-    vector<Bidomain> new_domains;
-    int reward;
-};
 
 void show(const vector<VtxPair> &current, const vector<Bidomain> &domains,
           const vector<int> &left, const vector<int> &right, Stats *stats) {
@@ -149,17 +145,18 @@ int calc_bound(const vector<Bidomain> &domains) {
     return bound;
 }
 
-int selectV_index(const vector<int> &arr, const vector<gtype> &lgrade, int start_idx, int len) {
+int selectV_index(const vector<int> &arr, const Rewards &rewards, int start_idx, int len) {
     int idx = -1;
     gtype max_g = -1;
     int vtx, best_vtx = INT_MAX;
     for (int i = 0; i < len; i++) {
         vtx = arr[start_idx + i];
-        if (lgrade[vtx] > max_g) {
+        double vtx_reward = rewards.get_vertex_reward(vtx, false);
+        if (vtx_reward > max_g) {
             idx = i;
             best_vtx = vtx;
-            max_g = lgrade[vtx];
-        } else if (lgrade[vtx] == max_g) {
+            max_g = vtx_reward;
+        } else if (vtx_reward == max_g) {
             if (vtx < best_vtx) {
                 idx = i;
                 best_vtx = vtx;
@@ -169,7 +166,7 @@ int selectV_index(const vector<int> &arr, const vector<gtype> &lgrade, int start
     return idx;
 }
 
-int select_bidomain(const vector<Bidomain> &domains, const vector<int> &left, const vector<gtype> &lgrade,
+int select_bidomain(const vector<Bidomain> &domains, const vector<int> &left, const Rewards &rewards,
                     int current_matching_size) {
     // Select the bidomain with the smallest max(leftsize, rightsize), breaking
     // ties on the smallest vertex index in the left set
@@ -187,10 +184,10 @@ int select_bidomain(const vector<Bidomain> &domains, const vector<int> &left, co
         len = arguments.heuristic == min_max ? std::max(bd.left_len, bd.right_len) : bd.left_len * bd.right_len;
         if (len < min_size) {
             min_size = len;
-            min_tie_breaker = left[bd.l + selectV_index(left, lgrade, bd.l, bd.left_len)];
+            min_tie_breaker = left[bd.l + selectV_index(left, rewards, bd.l, bd.left_len)];
             best = i;
         } else if (len == min_size) {
-            tie_breaker = left[bd.l + selectV_index(left, lgrade, bd.l, bd.left_len)];
+            tie_breaker = left[bd.l + selectV_index(left, rewards, bd.l, bd.left_len)];
             if (tie_breaker < min_tie_breaker) {
                 min_tie_breaker = tie_breaker;
                 best = i;
@@ -350,7 +347,7 @@ generate_new_domains(const vector<Bidomain> &d, int bd_idx, vector<VtxPair> &cur
     return result;
 }
 
-int selectW_index(const vector<int> &arr, const vector<gtype> &rgrade, int start_idx, int len,
+int selectW_index(const vector<int> &arr, const Rewards &rewards, const int v, int start_idx, int len,
                   const vector<int> &wselected) {
     int idx = -1;
     gtype max_g = -1;
@@ -358,11 +355,12 @@ int selectW_index(const vector<int> &arr, const vector<gtype> &rgrade, int start
     for (int i = 0; i < len; i++) {
         vtx = arr[start_idx + i];
         if (wselected[vtx] == 0) {
-            if (rgrade[vtx] > max_g) {
+            gtype pair_reward = rewards.get_pair_reward(v, vtx, false);
+            if (pair_reward > max_g) {
                 idx = i;
                 best_vtx = vtx;
-                max_g = rgrade[vtx];
-            } else if (rgrade[vtx] == max_g) {
+                max_g = pair_reward;
+            } else if (pair_reward == max_g) {
                 if (vtx < best_vtx) {
                     idx = i;
                     best_vtx = vtx;
@@ -383,7 +381,7 @@ void remove_bidomain(vector<Bidomain> &domains, int idx) {
     domains.pop_back();
 }
 
-void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<vector<vector<gtype>>> &Q,
+void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
            vector<VtxPair> &incumbent,
            vector<VtxPair> &current, vector<int> &g0_matched, vector<int> &g1_matched,
            vector<Bidomain> &domains, vector<int> &left, vector<int> &right, unsigned int matching_size_goal,
@@ -406,7 +404,7 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
             cout << "Incumbent size: " << incumbent.size() << endl;
         stats->bestfind = clock();
 
-        update_policy_counter(true, V, Q, g0.n, g1.n);
+        rewards.update_policy_counter(true);
     }
 
     // prune branch if upper bound is too small
@@ -420,7 +418,7 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
         return;
 
     // select bidomain based on heuristic
-    int bd_idx = select_bidomain(domains, left, V[arguments.reward_policy.current_reward_policy], current.size());
+    int bd_idx = select_bidomain(domains, left, rewards, current.size());
     if (bd_idx == -1) { // In the MCCS case, there may be nothing we can branch on
         return;
     }
@@ -430,20 +428,20 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
     int tmp_idx;
 
     // select vertex v (vertex with max reward)
-    tmp_idx = selectV_index(left, V[arguments.reward_policy.current_reward_policy], bd.l, bd.left_len);
+    tmp_idx = selectV_index(left, rewards, bd.l, bd.left_len);
     v = left[bd.l + tmp_idx];
     remove_vtx_from_array(left, bd.l, bd.left_len, tmp_idx); // remove v from bidomain
-    update_policy_counter(false, V, Q, g0.n, g1.n);
+    rewards.update_policy_counter(false);
 
     // Try assigning v to each vertex w in the colour class beginning at bd.r, in turn
     vector<int> wselected(g1.n, 0);
     bd.right_len--; //
     for (int i = 0; i <= bd.right_len; i++) {
-        tmp_idx = selectW_index(right, Q[arguments.reward_policy.current_reward_policy][v], bd.r, bd.right_len + 1, wselected);
+        tmp_idx = selectW_index(right, rewards, v, bd.r, bd.right_len + 1, wselected);
         w = right[bd.r + tmp_idx];
         wselected[w] = 1;
         std::swap(right[bd.r + tmp_idx], right[bd.r + bd.right_len]);
-        update_policy_counter(false, V, Q, g0.n, g1.n);
+        rewards.update_policy_counter(false);
 
 #ifdef DEBUG
         cout << "v= " << v << " w= " << w << endl;
@@ -460,10 +458,10 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
                                                 v, w,
                                                 arguments.directed || arguments.edge_labelled, stats);
         auto new_domains = result.new_domains;
-        update_rewards(domains, result, V, Q, v, w, stats);
+        rewards.update_rewards(result, v, w, stats);
 
         stats->dl++;
-        solve(g0, g1, V, Q, incumbent, current, g0_matched, g1_matched, new_domains, left, right, matching_size_goal,
+        solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, new_domains, left, right, matching_size_goal,
               stats);
         if (stats->abort_due_to_timeout) // hard timeout (else it gets stuck when trying to end the program gracefully)
             return;
@@ -477,7 +475,7 @@ void solve(const Graph &g0, const Graph &g1, vector<vector<gtype>> &V, vector<ve
     bd.right_len++;
     if (bd.left_len == 0)
         remove_bidomain(domains, bd_idx);
-    solve(g0, g1, V, Q, incumbent, current, g0_matched, g1_matched, domains, left, right, matching_size_goal, stats);
+    solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains, left, right, matching_size_goal, stats);
 }
 
 vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats) {
@@ -487,10 +485,7 @@ vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats) {
     vector<int> g0_matched(g0.n, 0);
     vector<int> g1_matched(g1.n, 0);
 
-    vector<vector<gtype>> V;
-    vector<vector<vector<gtype>>> Q;
-
-    empty_rewards(V, Q, g0.n, g1.n);
+    DoubleQRewards rewards(g0.n, g1.n);
 
     auto domains = vector<Bidomain>{};
 
@@ -524,6 +519,8 @@ vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats) {
         domains.push_back({start_l, start_r, left_len, right_len, false});
     }
 
+    stats->start = clock();
+
     vector<VtxPair> incumbent;
 
     if (arguments.big_first) {
@@ -533,7 +530,7 @@ vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats) {
             auto right_copy = right;
             auto domains_copy = domains;
             vector<VtxPair> current;
-            solve(g0, g1, V, Q, incumbent, current, g0_matched, g1_matched, domains_copy, left_copy, right_copy, goal,
+            solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains_copy, left_copy, right_copy, goal,
                   stats);
             if (incumbent.size() == goal || stats->abort_due_to_timeout)
                 break;
@@ -542,7 +539,7 @@ vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats) {
         }
     } else {
         vector<VtxPair> current;
-        solve(g0, g1, V, Q, incumbent, current, g0_matched, g1_matched, domains, left, right, 1, stats);
+        solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains, left, right, 1, stats);
     }
 
     if (arguments.timeout && double(clock() - stats->start) / CLOCKS_PER_SEC > arguments.timeout) {
