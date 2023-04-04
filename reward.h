@@ -31,23 +31,15 @@ struct Rewards{
     virtual void update_rewards(const NewBidomainResult &new_domains_result, int v, int w, Stats *stats) = 0;
     Rewards(int n, int m) {};
 };
-/*
-struct SingleQRewards : Rewards{
-    vector<Reward> V;
-    vector<Reward> Q;
 
-    SingleQRewards(int n, int m) : V(n), Q(m) {}
-    vector<Reward> get_left_rewards();
-    vector<Reward> get_right_rewards(int v);
-};
-*/
 struct DoubleQRewards : Rewards{
     vector<Reward> V;
     vector<vector<Reward>> Q;
+    vector<Reward> SingleQ;
     vector<int> left_initial_sort_order;
     vector<int> right_initial_sort_order;
 
-    DoubleQRewards(int n, int m) : Rewards(n,m), V(n), Q(n , vector<Reward>(m)), left_initial_sort_order(n,0), right_initial_sort_order(n,0) {}
+    DoubleQRewards(int n, int m) : Rewards(n,m), V(n), Q(n , vector<Reward>(m)), SingleQ(m), left_initial_sort_order(n,0), right_initial_sort_order(n,0) {}
     vector<Reward> get_left_rewards() override;
     vector<Reward> get_right_rewards(int v) override;
     void initialize(const vector<int> &left, const vector<int> &right) override;

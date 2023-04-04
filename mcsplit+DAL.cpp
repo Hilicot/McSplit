@@ -71,7 +71,7 @@ void set_default_arguments() {
     arguments.arg_num = 0;
     arguments.sort_heuristic = SortHeuristic::DEGREE;
     arguments.initialize_rewards = true; // if false, rewards are initialized to 0, else to sort_heuristic
-    arguments.mcs_method = LL_DAL;
+    arguments.mcs_method = RL_DAL;
     arguments.swap_policy = McSPLIT_SD;
     arguments.reward_policy.current_reward_policy = 1; // set starting policy (0:RL/LL, 1:DAL)
     arguments.reward_policy.switch_policy = CHANGE;
@@ -241,12 +241,12 @@ bool swap_graphs(Graph g0, Graph g1) {
 std::vector<int> page_rank(const Graph &g) {
     constexpr float damping_factor = 0.85f;
     constexpr float epsilon = 0.00001f;
-    std::vector<int> out_links = std::vector(g.n, 0);
+    std::vector<int> out_links = std::vector<int>(g.n, 0);
     for (int i = 0; i < g.n; i++) {
         out_links[i] = g.adjlist[i].adjNodes.size();
     }
     // create a stochastic matrix (inefficient for big/sparse graphs, could be transformed into adj list (or just use the Graph's internal adj_list?))
-    std::vector<std::vector<float>> stochastic_g = std::vector(g.n, std::vector(g.n, 0.0f));
+    std::vector<std::vector<float>> stochastic_g = std::vector<std::vector<float>>(g.n, std::vector<float>(g.n, 0.0f));
     for (int i = 0; i < g.n; i++) {
         if (!out_links[i]) {
             for (int j = 0; j < g.n; j++) {
@@ -261,7 +261,7 @@ std::vector<int> page_rank(const Graph &g) {
     std::vector<int> result(g.n, 0);
     std::vector<float> ranks(g.n, 0);
     std::vector<float> p(g.n, 1.0 / g.n);
-    std::vector<std::vector<float>> transposed = std::vector(g.n, std::vector(g.n, 0.0f));
+    std::vector<std::vector<float>> transposed = std::vector<std::vector<float>>(g.n, std::vector<float>(g.n, 0.0f));
     // transpose matrix
     for (int i = 0; i < g.n; i++) {
         for (int j = 0; j < g.n; j++) {
