@@ -5,6 +5,7 @@
 #include "args.h"
 #include "stats.h"
 
+
 using namespace std;
 using gtype = double;
 
@@ -33,6 +34,6 @@ struct NewBidomainResult{
     int reward;
 };
 
-vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats);
+vector<VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *stats);
 
 #endif

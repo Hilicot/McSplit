@@ -478,14 +478,14 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
     solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains, left, right, matching_size_goal, stats);
 }
 
-vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats) {
+vector<VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *stats) {
     vector<int> left;  // the buffer of vertex indices for the left partitions
     vector<int> right; // the buffer of vertex indices for the right partitions
 
     vector<int> g0_matched(g0.n, 0);
     vector<int> g1_matched(g1.n, 0);
 
-    DoubleQRewards rewards(g0.n, g1.n);
+    Rewards &rewards = *(Rewards *)rewards_p;
 
     auto domains = vector<Bidomain>{};
 
@@ -518,8 +518,6 @@ vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats) {
         int right_len = right.size() - start_r;
         domains.push_back({start_l, start_r, left_len, right_len, false});
     }
-
-    stats->start = clock();
 
     vector<VtxPair> incumbent;
 
