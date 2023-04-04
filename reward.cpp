@@ -14,9 +14,9 @@ void Reward::normalize(int ll_max, int dal_max, double factor) {
     this->normalized_reward = factor * this->ll_component / ll_max + (1 - factor) * this->dal_component / dal_max;
 }
 
-void Reward::reset() {
-    this->rl_component = 0;
-    this->ll_component = 0;
+void Reward::reset(int value) {
+    this->rl_component = value;
+    this->ll_component = value;
     this->dal_component = 0;
 }
 
@@ -59,16 +59,32 @@ vector<Reward> DoubleQRewards::get_right_rewards(int v) {
     return this->Q[v];
 }
 
+void DoubleQRewards::initialize(const vector<int> &left, const vector<int> &right) {
+    left_initial_sort_order = left;
+    right_initial_sort_order = right;
+    for (int i = 0; i < left.size(); i++) {
+        V[i].rl_component = left[i];
+        V[i].ll_component = left[i];
+        for (int j = 0; j < right.size(); j++) {
+            Q[i][j].rl_component = right[j];
+            Q[i][j].ll_component = right[j];
+        }
+    }
+}
+
 void rotate_reward_policy() {
     arguments.reward_policy.current_reward_policy = (arguments.reward_policy.current_reward_policy + 1) %
                                                     arguments.reward_policy.reward_policies_num;
 }
 
-void DoubleQRewards::empty_rewards() {
+/**
+ * reset the rewards to the initial sort order
+ */
+void DoubleQRewards::reset_rewards() {
     for (unsigned int i = 0; i < V.size(); i++) {
-        V[i].reset();
-        for (auto &j: Q[i]) {
-            j.reset();
+        V[i].reset(left_initial_sort_order[i]);
+        for (unsigned int j = 0; j < Q[i].size(); j++) {
+            Q[i][j].reset(right_initial_sort_order[j]);
         }
     }
 }
@@ -101,7 +117,7 @@ void DoubleQRewards::update_policy_counter(const bool restart_counter) {
                     break;
                 case RESET: {
                     rotate_reward_policy();
-                    empty_rewards();
+                    reset_rewards();
                     break;
                 }
                 case RANDOM: {
@@ -167,4 +183,6 @@ gtype DoubleQRewards::get_vertex_reward(int v, bool normalized) const  {
 gtype DoubleQRewards::get_pair_reward(int v, int w, bool normalized) const {
     return Q[v][w].get_reward(normalized);
 }
+
+
 

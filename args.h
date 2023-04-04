@@ -15,6 +15,11 @@ enum Heuristic
     min_product
 };
 
+enum class SortHeuristic{
+    DEGREE,
+    PAGE_RANK
+};
+
 enum RewardSwitchPolicy{
     CHANGE,
     RESET,
@@ -56,6 +61,8 @@ static struct arguments{
     bool vertex_labelled;
     bool big_first;
     Heuristic heuristic;
+    SortHeuristic sort_heuristic;
+    bool initialize_rewards;
     MCS mcs_method;
     char *filename1;
     char *filename2;
