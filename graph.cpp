@@ -225,17 +225,17 @@ struct Graph readBinaryGraph(char *filename, bool directed, bool edge_labelled,
         k1 = k2;
         k2++;
     }
-    std::cout << "labelled: " << vertex_labelled << std::endl;
+    //std::cout << "labelled: " << vertex_labelled << std::endl;
     for (int i = 0; i < nvertices; i++) {
         int label = (read_word(f) >> (16 - k1));
-        std::cout << "label: " << label << std::endl;
+        //std::cout << "label: " << label << std::endl;
         if (vertex_labelled)
             g.adjlist[i].label |= label;
     }
-    std::cout << "edge_labelled: " << edge_labelled << std::endl;
+    //std::cout << "edge_labelled: " << edge_labelled << std::endl;
     for (int i = 0; i < nvertices; i++) {
         int len = read_word(f);
-        std::cout << "len: " << len << std::endl;
+        //std::cout << "len: " << len << std::endl;
         for (int j = 0; j < len; j++) {
             int target = read_word(f);
             int label = (read_word(f) >> (16 - k1)) + 1;
