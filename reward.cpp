@@ -206,13 +206,17 @@ void DoubleQRewards::update_rewards(const NewBidomainResult &new_domains_result,
         SingleQ[w].update(reward, dal_reward);
         Q[v][w].update(reward, dal_reward);
 
-        // TODO if we normalize, we might have to adjust the thresholds
-        if (V[v].ll_component + V[v].dal_component > short_memory_threshold)
-            for (auto &r : V)
-                r.decay();
-        if (Q[v][w].ll_component + Q[v][w].dal_component > long_memory_threshold)
-            for (auto &r : Q[v])
-                r.decay();
+        // Do not decay if current policy is RL!
+        if (arguments.mcs_method != RL_DAL || arguments.reward_policy.current_reward_policy != 0)
+        {
+            // TODO if we normalize, we might have to adjust the thresholds
+            if (get_vertex_reward(v, false) > short_memory_threshold)
+                for (auto &r : V)
+                    r.decay();
+            if (get_pair_reward(v, w, false) > long_memory_threshold)
+                for (auto &r : Q[v])
+                    r.decay();
+        }
     }
 }
 
