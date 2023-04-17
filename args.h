@@ -1,6 +1,8 @@
 #ifndef MCSPLITDAL_ARGS_H
 #define MCSPLITDAL_ARGS_H
 
+#include "heuristics/SortHeuristic.h"
+
 enum SwapPolicy
 {
     NO_SWAP,
@@ -13,11 +15,6 @@ enum Heuristic
 {
     min_max,
     min_product
-};
-
-enum class SortHeuristic{
-    DEGREE,
-    PAGE_RANK
 };
 
 enum RewardSwitchPolicy{
@@ -61,7 +58,7 @@ static struct arguments{
     bool vertex_labelled;
     bool big_first;
     Heuristic heuristic;
-    SortHeuristic sort_heuristic;
+    SortHeuristic::Base *sort_heuristic;
     bool initialize_rewards;
     MCS mcs_method;
     char *filename1;

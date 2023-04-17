@@ -16,6 +16,7 @@
 #include "args.h"
 #include "reward.h"
 #include "mcs.h"
+#include "heuristics/SortHeuristic.h"
 
 using namespace std;
 
@@ -51,7 +52,7 @@ static struct argp_option options[] = {
         {"big-first",            'b', 0,                   0, "First try to find an induced subgraph isomorphism, then decrement the target size"},
         {"timeout",              't', "timeout",           0, "Specify a timeout (seconds)"},
         {"dal_reward_policy",    'D', "dal_reward_policy", 0, "Specify the dal reward policy (num, max, avg)"},
-        {"sort_heuristic",       's', "sort_heuristic",    0, "Specify the sort heuristic (degree, pagerank)"},
+        {"sort_heuristic",       's', "sort_heuristic",    0, "Specify the sort heuristic (degree, pagerank, betweenness)"},
         {0}};
 
 void set_default_arguments() {
@@ -69,7 +70,7 @@ void set_default_arguments() {
     arguments.filename2 = NULL;
     arguments.timeout = 0;
     arguments.arg_num = 0;
-    arguments.sort_heuristic = SortHeuristic::DEGREE;
+    arguments.sort_heuristic = new SortHeuristic::Degree();
     arguments.initialize_rewards = true; // if false, rewards are initialized to 0, else to sort_heuristic
     arguments.mcs_method = LL_DAL;
     arguments.swap_policy = McSPLIT_SD;
@@ -139,11 +140,13 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             break;
         case 's':
             if (string(arg) == "degree")
-                arguments.sort_heuristic = SortHeuristic::DEGREE;
+                arguments.sort_heuristic = new SortHeuristic::Degree();
             else if (string(arg) == "pagerank")
-                arguments.sort_heuristic = SortHeuristic::PAGE_RANK;
+                arguments.sort_heuristic = new SortHeuristic::PageRank();
+            else if (string(arg) == "betweenness")
+                arguments.sort_heuristic = new SortHeuristic::BetweennessCentrality();
             else
-                fail("Unknown sort heuristic (try degree, pagerank)");
+                fail("Unknown sort heuristic (try degree, pagerank, betweenness)");
             break;
         case ARGP_KEY_ARG:
             if (arguments.arg_num == 0) {
@@ -199,14 +202,6 @@ bool check_sol(const Graph &g0, const Graph &g1, const vector<VtxPair> &solution
     return true;
 }
 
-vector<int> calculate_degrees(const Graph &g) {
-    vector<int> degree(g.n, 0);
-    for (int v = 0; v < g.n; v++) {
-        degree[v] = g.adjlist[v].adjNodes.size() - 1;
-    }
-    return degree;
-}
-
 int sum(const vector<int> &vec) {
     return std::accumulate(std::begin(vec), std::end(vec), 0);
 }
@@ -234,68 +229,6 @@ bool swap_graphs(Graph g0, Graph g1) {
             return false;
     }
 }
-
-// Codice ripreso da "Purtroppo" su GitHub. Ciao "Purtroppo", ora fai parte della ricerca
-// https://github.com/purtroppo/PageRank
-// ATTENZIONE: il codice è stato modificato per adattarlo al progetto, non supporta più weighted graphs
-std::vector<int> page_rank(const Graph &g) {
-    constexpr float damping_factor = 0.85f;
-    constexpr float epsilon = 0.00001f;
-    std::vector<int> out_links = std::vector(g.n, 0);
-    for (int i = 0; i < g.n; i++) {
-        out_links[i] = g.adjlist[i].adjNodes.size();
-    }
-    // create a stochastic matrix (inefficient for big/sparse graphs, could be transformed into adj list (or just use the Graph's internal adj_list?))
-    std::vector<std::vector<float>> stochastic_g = std::vector(g.n, std::vector(g.n, 0.0f));
-    for (int i = 0; i < g.n; i++) {
-        if (!out_links[i]) {
-            for (int j = 0; j < g.n; j++) {
-                stochastic_g[i][j] = 1.0f / (float) g.n;
-            }
-        } else {
-            for (auto &w: g.adjlist[i].adjNodes) {
-                stochastic_g[i][w.id] = 1.0f / (float) out_links[i];
-            }
-        }
-    }
-    std::vector<int> result(g.n, 0);
-    std::vector<float> ranks(g.n, 0);
-    std::vector<float> p(g.n, 1.0 / g.n);
-    std::vector<std::vector<float>> transposed = std::vector(g.n, std::vector(g.n, 0.0f));
-    // transpose matrix
-    for (int i = 0; i < g.n; i++) {
-        for (int j = 0; j < g.n; j++) {
-            transposed[i][j] = stochastic_g[j][i];
-        }
-    }
-    while (true) {
-        std::fill(ranks.begin(), ranks.end(), 0);
-        for (int i = 0; i < g.n; i++) {
-            for (int j = 0; j < g.n; j++) {
-                ranks[i] = ranks[i] + transposed[i][j] * p[j];
-            }
-        }
-        for (int i = 0; i < g.n; i++) {
-            ranks[i] = damping_factor * ranks[i] + (1.0 - damping_factor) / (float) g.n;
-        }
-        float error = 0.0f;
-        for (int i = 0; i < g.n; i++) {
-            error += std::abs(ranks[i] - p[i]);
-        }
-        if (error < epsilon) {
-            break;
-        }
-
-        for (int i = 0; i < g.n; i++) {
-            p[i] = ranks[i];
-        }
-    }
-    for (int i = 0; i < ranks.size(); i++) {
-        result[i] = ranks[i] / epsilon;
-    }
-    return result;
-}
-
 
 int main(int argc, char **argv) {
     set_default_arguments();
@@ -351,14 +284,9 @@ int main(int argc, char **argv) {
     stats->start = clock();
 
     // static sort order
-    std::vector<int> g0_deg, g1_deg;
-    if (arguments.sort_heuristic == SortHeuristic::DEGREE) {
-        g0_deg = calculate_degrees(g0);
-        g1_deg = calculate_degrees(g1);
-    } else if (arguments.sort_heuristic == SortHeuristic::PAGE_RANK) {
-        g0_deg = page_rank(g0);
-        g1_deg = page_rank(g1);
-    }
+    arguments.sort_heuristic->set_num_threads(10);
+    std::vector<int> g0_deg = arguments.sort_heuristic->sort(g0);
+    std::vector<int> g1_deg = arguments.sort_heuristic->sort(g1);
 
     // As implemented here, g1_dense and g0_dense are false for all instances
     // in the Experimental Evaluation section of the paper.  Thus,
