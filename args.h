@@ -18,6 +18,7 @@ enum Heuristic
 };
 
 enum RewardSwitchPolicy{
+    NO_CHANGE,
     CHANGE,
     RESET,
     RANDOM,
