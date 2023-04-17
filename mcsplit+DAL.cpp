@@ -74,7 +74,7 @@ void set_default_arguments() {
     arguments.initialize_rewards = false; // if false, rewards are initialized to 0, else to sort_heuristic
     arguments.mcs_method = RL_DAL;
     arguments.swap_policy = McSPLIT_SD;
-    arguments.reward_policy.current_reward_policy = 1; // set starting policy (0:RL/LL, 1:DAL)
+    arguments.reward_policy.current_reward_policy = 0; // set starting policy (0:RL/LL, 1:DAL)
     arguments.reward_policy.reward_policies_num = 2;
     arguments.reward_policy.switch_policy = CHANGE;
     arguments.reward_policy.dal_reward_policy = DAL_REWARD_MAX_NUM_DOMAINS;
@@ -388,11 +388,24 @@ int main(int argc, char **argv) {
                 cout << "(" << solution[j].v << " -> " << solution[j].w << ") ";
     cout << std::endl;
 
+    cout << "Arguments:" << endl;
+    cout << "  -t:                      " << arguments.timeout << endl;
+    cout << "  -sort_heuristic:         " << arguments.sort_heuristic->name << endl;
+    cout << "  -initialize_reward:      " << arguments.initialize_rewards << endl;
+    cout << "  -mcs_method:             " << arguments.mcs_method << endl;
+    cout << "  -swap_policy:            " << arguments.swap_policy << endl;
+    cout << "  -current_ewward_policy:  " << arguments.reward_policy.current_reward_policy << endl;
+    cout << "  -reward_policies_num:    " << arguments.reward_policy.reward_policies_num << endl;
+    cout << "  -switch_policy:          " << arguments.reward_policy.switch_policy << endl;
+    cout << "  -dal_reward_policy:      " << arguments.reward_policy.dal_reward_policy << endl;
+
+    cout << endl;
+
     cout << "Nodes:                      " << stats->nodes << endl;
     cout << "Cut branches:               " << stats->cutbranches << endl;
-    cout << "Conflicts:                    " << stats->conflicts << endl;
-    printf("CPU time (ms):              %15ld\n", time_elapsed * 1000 / CLOCKS_PER_SEC);
-    printf("FindBest time (ms):              %15ld\n", time_find * 1000 / CLOCKS_PER_SEC);
+    cout << "Conflicts:                  " << stats->conflicts << endl;
+    printf("CPU time (ms):               %15ld\n", time_elapsed * 1000 / CLOCKS_PER_SEC);
+    printf("FindBest time (ms):          %15ld\n", time_find * 1000 / CLOCKS_PER_SEC);
 #ifdef Best
     cout << "Best nodes:                 " << stats->bestnodes << endl;
     cout << "Best count:                 " << stats->bestcount << endl;

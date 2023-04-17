@@ -1,4 +1,4 @@
-#include "brandes.h"
+#include "Brandes.h"
 
 #include <algorithm>
 #include <iostream>
