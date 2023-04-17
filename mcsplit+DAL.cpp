@@ -390,7 +390,7 @@ int main(int argc, char **argv) {
 
     cout << "Arguments:" << endl;
     cout << "  -t:                      " << arguments.timeout << endl;
-    cout << "  -sort_heuristic:         " << arguments.sort_heuristic->name << endl;
+    cout << "  -sort_heuristic:         " << arguments.sort_heuristic->name() << endl;
     cout << "  -initialize_reward:      " << arguments.initialize_rewards << endl;
     cout << "  -mcs_method:             " << arguments.mcs_method << endl;
     cout << "  -swap_policy:            " << arguments.swap_policy << endl;

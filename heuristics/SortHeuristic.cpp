@@ -2,7 +2,7 @@
 #include <algorithm>
 #include "Brandes.h"
 
-#define VERBOSE true
+#define VERBOSE false
 
 namespace SortHeuristic {
     vector<int>  Degree::sort(const Graph &g) {

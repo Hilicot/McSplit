@@ -12,26 +12,26 @@ namespace SortHeuristic {
     protected:
         int num_threads = 1;
     public:
-        string name = "Base";
+        virtual string name(){return "Base";};
         virtual vector<int> sort(const Graph &g){std::cout << "Warning: no sort is selected!" << std::endl;}; 
         void set_num_threads(int num_threads) { this->num_threads = num_threads; }
     };
 
     class Degree : public Base {
     public:
-        string name = "Degree";
+        string name() override {return "Degree";};
         vector<int> sort(const Graph &g) override;
     };
 
     class PageRank : public Base {
     public:
-        string name = "PageRank";
+        string name() override {return "PageRank";};
         vector<int> sort(const Graph &g) override;
     };
 
     class BetweennessCentrality : public Base {
     public:
-        string name = "BetweennessCentrality";
+        string name() override {return "BetweennessCentrality";};
         vector<int> sort(const Graph &g) override;
     };
 
