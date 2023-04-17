@@ -17,10 +17,11 @@ enum Heuristic
 
 enum class SortHeuristic{
     DEGREE,
-    PAGE_RANK
+    PAGE_RANK,
 };
 
 enum RewardSwitchPolicy{
+    NO_CHANGE,
     CHANGE,
     RESET,
     RANDOM,

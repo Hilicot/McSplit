@@ -70,11 +70,12 @@ void set_default_arguments() {
     arguments.timeout = 0;
     arguments.arg_num = 0;
     arguments.sort_heuristic = SortHeuristic::DEGREE;
-    arguments.initialize_rewards = true; // if false, rewards are initialized to 0, else to sort_heuristic
+    arguments.initialize_rewards = false; // if false, rewards are initialized to 0, else to sort_heuristic
     arguments.mcs_method = RL_DAL;
     arguments.swap_policy = McSPLIT_SD;
     arguments.reward_policy.current_reward_policy = 1; // set starting policy (0:RL/LL, 1:DAL)
-    arguments.reward_policy.switch_policy = CHANGE;
+    arguments.reward_policy.reward_policies_num = 1; 
+    arguments.reward_policy.switch_policy = NO_CHANGE;
     arguments.reward_policy.dal_reward_policy = DAL_REWARD_MAX_NUM_DOMAINS;
 }
 

@@ -65,7 +65,7 @@ vector<Reward> DoubleQRewards::get_right_rewards(int v)
         return this->Q[v];
 }
 
-void DoubleQRewards::initialize(const vector<int> &left, const vector<int> &right)
+void DoubleQRewards::initialize(const vector<int>& left, const vector<int>& right)
 {
     left_initial_sort_order = left;
     right_initial_sort_order = right;
@@ -93,7 +93,7 @@ void DoubleQRewards::initialize(const vector<int> &left, const vector<int> &righ
 void rotate_reward_policy()
 {
     arguments.reward_policy.current_reward_policy = (arguments.reward_policy.current_reward_policy + 1) %
-                                                    arguments.reward_policy.reward_policies_num;
+        arguments.reward_policy.reward_policies_num;
 }
 
 /**
@@ -131,10 +131,8 @@ void DoubleQRewards::randomize_rewards()
     exit(1);
 }
 
-void DoubleQRewards::update_policy_counter(const bool restart_counter)
-{
-    if (restart_counter)
-    { // A better solution was found, reset the counter
+void DoubleQRewards::update_policy_counter(const bool restart_counter) {
+    if (restart_counter) { // A better solution was found, reset the counter
         arguments.reward_policy.policy_switch_counter = 0;
     }
     else
@@ -143,19 +141,19 @@ void DoubleQRewards::update_policy_counter(const bool restart_counter)
         if (arguments.reward_policy.policy_switch_counter > arguments.reward_policy.reward_switch_policy_threshold)
         {
             arguments.reward_policy.policy_switch_counter = 0;
-            switch (arguments.reward_policy.switch_policy)
-            {
+            switch (arguments.reward_policy.switch_policy) {
+            case NO_CHANGE:
+                // Do nothing
+                break;
             case CHANGE:
                 rotate_reward_policy();
                 break;
-            case RESET:
-            {
+            case RESET: {
                 rotate_reward_policy();
                 reset_rewards();
                 break;
             }
-            case RANDOM:
-            {
+            case RANDOM: {
                 rotate_reward_policy();
                 randomize_rewards();
                 break;
@@ -168,11 +166,11 @@ void DoubleQRewards::update_policy_counter(const bool restart_counter)
     }
 }
 
-void DoubleQRewards::update_rewards(const NewBidomainResult &new_domains_result, int v, int w, Stats *stats)
+void DoubleQRewards::update_rewards(const NewBidomainResult& new_domains_result, int v, int w, Stats* stats)
 {
     // TODO add support for RL policy (right now only LL and DAL supported)
     int reward = new_domains_result.reward;
-    const vector<Bidomain> &new_domains = new_domains_result.new_domains;
+    const vector<Bidomain>& new_domains = new_domains_result.new_domains;
 
     // Compute DAL reward
     int dal_reward = 0;
@@ -181,16 +179,16 @@ void DoubleQRewards::update_rewards(const NewBidomainResult &new_domains_result,
     else if (arguments.reward_policy.dal_reward_policy == DAL_REWARD_MIN_MAX_DOMAIN_SIZE)
     {
         auto max_bidomain = std::max_element(new_domains.begin(), new_domains.end(),
-                                             [](const Bidomain &bd1, const Bidomain &bd2)
-                                             {
-                                                 return bd1.get_max_len() < bd2.get_max_len();
-                                             });
+            [](const Bidomain& bd1, const Bidomain& bd2)
+            {
+                return bd1.get_max_len() < bd2.get_max_len();
+            });
         dal_reward = -max_bidomain->get_max_len() / 100; // partial rounding + normalization (to remove?)
     }
     else if (arguments.reward_policy.dal_reward_policy == DAL_REWARD_MIN_AVG_DOMAIN_SIZE)
     {
         int total = 0;
-        for (const Bidomain &bd : new_domains)
+        for (const Bidomain& bd : new_domains)
         {
             total += bd.get_max_len();
         }
@@ -211,10 +209,10 @@ void DoubleQRewards::update_rewards(const NewBidomainResult &new_domains_result,
         {
             // TODO if we normalize, we might have to adjust the thresholds
             if (get_vertex_reward(v, false) > short_memory_threshold)
-                for (auto &r : V)
+                for (auto& r : V)
                     r.decay();
             if (get_pair_reward(v, w, false) > long_memory_threshold)
-                for (auto &r : Q[v])
+                for (auto& r : Q[v])
                     r.decay();
         }
     }
