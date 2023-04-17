@@ -5,6 +5,7 @@
 #include "args.h"
 #include "stats.h"
 
+
 using namespace std;
 using gtype = double;
 
@@ -28,6 +29,11 @@ struct Bidomain
     int get_max_len() const { return max(left_len, right_len); }
 };
 
-vector<VtxPair> mcs(const Graph &g0, const Graph &g1, Stats *stats);
+struct NewBidomainResult{
+    vector<Bidomain> new_domains;
+    int reward;
+};
+
+vector<VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *stats);
 
 #endif

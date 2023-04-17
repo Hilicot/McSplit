@@ -8,13 +8,13 @@
 #include <mutex>
 #include <condition_variable>
 #include <argp.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <thread>
 #include "stats.h"
 #include "args.h"
+#include "reward.h"
 #include "mcs.h"
 
 using namespace std;
@@ -39,18 +39,19 @@ static void fail(std::string msg) {
 static char doc[] = "Find a maximum clique in a graph in DIMACS format\vHEURISTIC can be min_max or min_product";
 static char args_doc[] = "HEURISTIC FILENAME1 FILENAME2";
 static struct argp_option options[] = {
-        {"quiet",                'q', 0,                    0, "Quiet output"},
-        {"verbose",              'v', 0,                    0, "Verbose output"},
-        {"dimacs",               'd', 0,                    0, "Read DIMACS format"},
-        {"lad",                  'l', 0,                    0, "Read LAD format"},
-        {"ascii",                'A', 0,                    0, "Read ASCII format"},
-        {"connected",            'c', 0,                    0, "Solve max common CONNECTED subgraph problem"},
-        {"directed",             'i', 0,                    0, "Use directed graphs"},
-        {"labelled",             'a', 0,                    0, "Use edge and vertex labels"},
-        {"vertex-labelled-only", 'x', 0,                    0, "Use vertex labels, but not edge labels"},
-        {"big-first",            'b', 0,                    0, "First try to find an induced subgraph isomorphism, then decrement the target size"},
-        {"timeout",              't', "timeout",            0, "Specify a timeout (seconds)"},
-        {"dal_reward_policy",    'D', "dal_reward_policy",  0, "Specify the dal reward policy (num, max, avg)"},
+        {"quiet",                'q', 0,                   0, "Quiet output"},
+        {"verbose",              'v', 0,                   0, "Verbose output"},
+        {"dimacs",               'd', 0,                   0, "Read DIMACS format"},
+        {"lad",                  'l', 0,                   0, "Read LAD format"},
+        {"ascii",                'A', 0,                   0, "Read ASCII format"},
+        {"connected",            'c', 0,                   0, "Solve max common CONNECTED subgraph problem"},
+        {"directed",             'i', 0,                   0, "Use directed graphs"},
+        {"labelled",             'a', 0,                   0, "Use edge and vertex labels"},
+        {"vertex-labelled-only", 'x', 0,                   0, "Use vertex labels, but not edge labels"},
+        {"big-first",            'b', 0,                   0, "First try to find an induced subgraph isomorphism, then decrement the target size"},
+        {"timeout",              't', "timeout",           0, "Specify a timeout (seconds)"},
+        {"dal_reward_policy",    'D', "dal_reward_policy", 0, "Specify the dal reward policy (num, max, avg)"},
+        {"sort_heuristic",       's', "sort_heuristic",    0, "Specify the sort heuristic (degree, pagerank)"},
         {0}};
 
 void set_default_arguments() {
@@ -68,8 +69,13 @@ void set_default_arguments() {
     arguments.filename2 = NULL;
     arguments.timeout = 0;
     arguments.arg_num = 0;
-    arguments.swap_policy = McSPLIT_SO;
-    arguments.reward_policy.switch_policy = CHANGE;
+    arguments.sort_heuristic = SortHeuristic::DEGREE;
+    arguments.initialize_rewards = false; // if false, rewards are initialized to 0, else to sort_heuristic
+    arguments.mcs_method = RL_DAL;
+    arguments.swap_policy = McSPLIT_SD;
+    arguments.reward_policy.current_reward_policy = 1; // set starting policy (0:RL/LL, 1:DAL)
+    arguments.reward_policy.reward_policies_num = 1; 
+    arguments.reward_policy.switch_policy = NO_CHANGE;
     arguments.reward_policy.dal_reward_policy = DAL_REWARD_MAX_NUM_DOMAINS;
 }
 
@@ -123,14 +129,22 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             arguments.timeout = std::stoi(arg);
             break;
         case 'D':
-            if(string(arg) == "num")
+            if (string(arg) == "num")
                 arguments.reward_policy.dal_reward_policy = DAL_REWARD_MAX_NUM_DOMAINS;
-            else if(string(arg) == "max")
+            else if (string(arg) == "max")
                 arguments.reward_policy.dal_reward_policy = DAL_REWARD_MIN_MAX_DOMAIN_SIZE;
-            else if(string(arg) == "avg")
+            else if (string(arg) == "avg")
                 arguments.reward_policy.dal_reward_policy = DAL_REWARD_MIN_AVG_DOMAIN_SIZE;
             else
                 fail("Unknown dal reward policy (try num, max, avg)");
+            break;
+        case 's':
+            if (string(arg) == "degree")
+                arguments.sort_heuristic = SortHeuristic::DEGREE;
+            else if (string(arg) == "pagerank")
+                arguments.sort_heuristic = SortHeuristic::PAGE_RANK;
+            else
+                fail("Unknown sort heuristic (try degree, pagerank)");
             break;
         case ARGP_KEY_ARG:
             if (arguments.arg_num == 0) {
@@ -222,6 +236,68 @@ bool swap_graphs(Graph g0, Graph g1) {
     }
 }
 
+// Codice ripreso da "Purtroppo" su GitHub. Ciao "Purtroppo", ora fai parte della ricerca
+// https://github.com/purtroppo/PageRank
+// ATTENZIONE: il codice è stato modificato per adattarlo al progetto, non supporta più weighted graphs
+std::vector<int> page_rank(const Graph &g) {
+    constexpr float damping_factor = 0.85f;
+    constexpr float epsilon = 0.00001f;
+    std::vector<int> out_links = std::vector<int>(g.n, 0);
+    for (int i = 0; i < g.n; i++) {
+        out_links[i] = g.adjlist[i].adjNodes.size();
+    }
+    // create a stochastic matrix (inefficient for big/sparse graphs, could be transformed into adj list (or just use the Graph's internal adj_list?))
+    std::vector<std::vector<float>> stochastic_g = std::vector<std::vector<float>>(g.n, std::vector<float>(g.n, 0.0f));
+    for (int i = 0; i < g.n; i++) {
+        if (!out_links[i]) {
+            for (int j = 0; j < g.n; j++) {
+                stochastic_g[i][j] = 1.0f / (float) g.n;
+            }
+        } else {
+            for (auto &w: g.adjlist[i].adjNodes) {
+                stochastic_g[i][w.id] = 1.0f / (float) out_links[i];
+            }
+        }
+    }
+    std::vector<int> result(g.n, 0);
+    std::vector<float> ranks(g.n, 0);
+    std::vector<float> p(g.n, 1.0 / g.n);
+    std::vector<std::vector<float>> transposed = std::vector<std::vector<float>>(g.n, std::vector<float>(g.n, 0.0f));
+    // transpose matrix
+    for (int i = 0; i < g.n; i++) {
+        for (int j = 0; j < g.n; j++) {
+            transposed[i][j] = stochastic_g[j][i];
+        }
+    }
+    while (true) {
+        std::fill(ranks.begin(), ranks.end(), 0);
+        for (int i = 0; i < g.n; i++) {
+            for (int j = 0; j < g.n; j++) {
+                ranks[i] = ranks[i] + transposed[i][j] * p[j];
+            }
+        }
+        for (int i = 0; i < g.n; i++) {
+            ranks[i] = damping_factor * ranks[i] + (1.0 - damping_factor) / (float) g.n;
+        }
+        float error = 0.0f;
+        for (int i = 0; i < g.n; i++) {
+            error += std::abs(ranks[i] - p[i]);
+        }
+        if (error < epsilon) {
+            break;
+        }
+
+        for (int i = 0; i < g.n; i++) {
+            p[i] = ranks[i];
+        }
+    }
+    for (int i = 0; i < ranks.size(); i++) {
+        result[i] = ranks[i] / epsilon;
+    }
+    return result;
+}
+
+
 int main(int argc, char **argv) {
     set_default_arguments();
     argp_parse(&argp, argc, argv, 0, 0, 0);
@@ -265,7 +341,7 @@ int main(int argc, char **argv) {
     }
 #endif
 
-    // decide wheter to swap the graphs based on swap_policy
+    // decide whether to swap the graphs based on swap_policy
     if (swap_graphs(g0, g1)) {
         swap(g0, g1);
         stats->swapped_graphs = true;
@@ -275,8 +351,15 @@ int main(int argc, char **argv) {
     //  auto start = std::chrono::steady_clock::now();
     stats->start = clock();
 
-    vector<int> g0_deg = calculate_degrees(g0);
-    vector<int> g1_deg = calculate_degrees(g1);
+    // static sort order
+    std::vector<int> g0_deg, g1_deg;
+    if (arguments.sort_heuristic == SortHeuristic::DEGREE) {
+        g0_deg = calculate_degrees(g0);
+        g1_deg = calculate_degrees(g1);
+    } else if (arguments.sort_heuristic == SortHeuristic::PAGE_RANK) {
+        g0_deg = page_rank(g0);
+        g1_deg = page_rank(g1);
+    }
 
     // As implemented here, g1_dense and g0_dense are false for all instances
     // in the Experimental Evaluation section of the paper.  Thus,
@@ -336,12 +419,18 @@ int main(int argc, char **argv) {
     g0_sorted.pack_leaves();
     g1_sorted.pack_leaves();
 
+    DoubleQRewards rewards(g0.n, g1.n);
+    if(arguments.initialize_rewards){
+        rewards.initialize(g0_deg, g1_deg);
+    }
+
+    // start clock
     stats->start = clock();
 
-    vector<VtxPair> solution = mcs(g0_sorted, g1_sorted, stats);
+    vector<VtxPair> solution = mcs(g0_sorted, g1_sorted, (void *) &rewards, stats);
 
     // Convert to indices from original, unsorted graphs
-    for (auto &vtx_pair : solution) {
+    for (auto &vtx_pair: solution) {
         vtx_pair.v = vv0[vtx_pair.v];
         vtx_pair.w = vv1[vtx_pair.w];
     }
