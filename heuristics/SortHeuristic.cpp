@@ -3,6 +3,7 @@
 #include <thread>
 #include <stack>
 #include <queue>
+#include <set>
 
 #define VERBOSE false
 
@@ -95,6 +96,41 @@ namespace SortHeuristic {
                 }
             }
             result[i] = 2 * num_triangles * 100 / (degree * (degree - 1));
+        }
+        return result;
+    }
+
+
+    vector<int> KatzCentrality::sort(const Graph &g) {
+        if (VERBOSE) std::cout << "Sorting by Katz Centrality" << std::endl;
+        constexpr float alpha = 0.5f;
+        vector<int> result(g.n, 0);
+        for (int i = 0; i < g.n; i++) {
+            vector<int> visited(g.n, 0);
+            vector<double> score(g.n, 0);
+            set<int> next_layer, current_layer;
+            score[i] = 1;
+            next_layer.insert(i);
+            // run BFS
+            while (!next_layer.empty()) {
+                current_layer = next_layer;
+                next_layer.clear();
+                for (auto &v: current_layer) {
+                    for (auto &w: g.adjlist[v].adjNodes) {
+                        if (visited[w.id] == 0) {
+                            score[w.id] += score[v] * alpha;
+                            next_layer.insert(w.id);
+                        }
+                    }
+                }
+                for (auto &w: next_layer) {
+                    visited[w] = 1;
+                }
+            }
+            double sum = 0;
+            for (int j = 0; j < g.n; j++)
+                sum += score[j] * 10;
+            result[i] = (int) sum;
         }
         return result;
     }

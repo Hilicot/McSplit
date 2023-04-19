@@ -37,6 +37,12 @@ namespace SortHeuristic {
         vector<int> sort(const Graph &g) override;
     };
 
+    class KatzCentrality : public Base {
+    public:
+        string name() override {return "KatzCentrality";};
+        vector<int> sort(const Graph &g) override;
+    };
+
     /////////////// Parallel Heuristics ///////////////
 
     class Parallel : public Base {
