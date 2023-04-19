@@ -39,7 +39,7 @@ struct DoubleQRewards : Rewards{
     vector<int> left_initial_sort_order;
     vector<int> right_initial_sort_order;
 
-    DoubleQRewards(int n, int m) : Rewards(n,m), V(n), Q(n , vector<Reward>(m)), SingleQ(m), left_initial_sort_order(n,0), right_initial_sort_order(n,0) {}
+    DoubleQRewards(int n, int m) : Rewards(n,m), V(n), Q(n , vector<Reward>(m)), SingleQ(m), left_initial_sort_order(n,0), right_initial_sort_order(n,0){};
     vector<Reward> get_left_rewards() override;
     vector<Reward> get_right_rewards(int v) override;
     void initialize(const vector<int> &left, const vector<int> &right) override;

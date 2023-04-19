@@ -243,7 +243,29 @@ generate_new_domains(const vector<Bidomain> &d, int bd_idx, vector<VtxPair> &cur
     return result;
 }
 
-int selectW_index(const vector<int> &arr, const Rewards &rewards, const int v, int start_idx, int len,
+int getNeighborOverlapScores(const Graph &g0, const Graph &g1, const vector<VtxPair> &current, int v, int w) {
+    int overlap_v = 0;
+    int overlap_w = 0;
+    // get number of selected neighbors of v
+    for (auto &neighbor: g0.adjlist[v].adjNodes)
+        for (auto j: current)
+            if (j.v == neighbor.id) {
+                overlap_v++;
+                break;
+            }
+    // get number of selected neighbors of w
+    for (auto &neighbor: g1.adjlist[w].adjNodes)
+        for (auto j: current)
+            if (j.w == neighbor.id) {
+                overlap_w++;
+                break;
+            }
+
+    return overlap_v + overlap_w;
+}
+
+int selectW_index(const Graph &g0, const Graph &g1, const vector<VtxPair> &current, const vector<int> &arr,
+                  const Rewards &rewards, const int v, int start_idx, int len,
                   const vector<int> &wselected) {
     int idx = -1;
     gtype max_g = -1;
@@ -251,7 +273,17 @@ int selectW_index(const vector<int> &arr, const Rewards &rewards, const int v, i
     for (int i = 0; i < len; i++) {
         vtx = arr[start_idx + i];
         if (wselected[vtx] == 0) {
-            gtype pair_reward = rewards.get_pair_reward(v, vtx, false);
+            gtype pair_reward = 0;
+            // Compute overlap scores
+            if (arguments.reward_policy.neighbor_overlap != NO_OVERLAP) {
+                int overlap_score = getNeighborOverlapScores(g0, g1, current, v, vtx);
+                pair_reward += overlap_score*100;
+            }
+            // Compute regular reward for pair
+            gtype reward = rewards.get_pair_reward(v, vtx, false);
+            pair_reward += reward;
+
+            // Check if this is the best pair so far
             if (pair_reward > max_g) {
                 idx = i;
                 best_vtx = vtx;
@@ -332,7 +364,7 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
     vector<int> wselected(g1.n, 0);
     bd.right_len--; //
     for (int i = 0; i <= bd.right_len; i++) {
-        tmp_idx = selectW_index(right, rewards, v, bd.r, bd.right_len + 1, wselected);
+        tmp_idx = selectW_index(g0, g1, current, right, rewards, v, bd.r, bd.right_len + 1, wselected);
         w = right[bd.r + tmp_idx];
         wselected[w] = 1;
         std::swap(right[bd.r + tmp_idx], right[bd.r + bd.right_len]);
@@ -350,8 +382,8 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
 #endif
         unsigned int cur_len = current.size();
         auto result = generate_new_domains(domains, bd_idx, current, g0_matched, g1_matched, left, right, g0, g1,
-                                                v, w,
-                                                arguments.directed || arguments.edge_labelled, stats);
+                                           v, w,
+                                           arguments.directed || arguments.edge_labelled, stats);
         auto new_domains = result.new_domains;
         rewards.update_rewards(result, v, w, stats);
 
@@ -380,7 +412,7 @@ vector<VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *st
     vector<int> g0_matched(g0.n, 0);
     vector<int> g1_matched(g1.n, 0);
 
-    Rewards &rewards = *(Rewards *)rewards_p;
+    Rewards &rewards = *(Rewards *) rewards_p;
 
     auto domains = vector<Bidomain>{};
 
@@ -423,7 +455,8 @@ vector<VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *st
             auto right_copy = right;
             auto domains_copy = domains;
             vector<VtxPair> current;
-            solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains_copy, left_copy, right_copy, goal,
+            solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains_copy, left_copy, right_copy,
+                  goal,
                   stats);
             if (incumbent.size() == goal || stats->abort_due_to_timeout)
                 break;

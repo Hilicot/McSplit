@@ -1,22 +1,4 @@
-#include "graph.h"
-
-#include <algorithm>
-#include <numeric>
-#include <iostream>
-#include <set>
-#include <string>
-#include <mutex>
-#include <condition_variable>
-#include <argp.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <thread>
-#include "stats.h"
-#include "args.h"
-#include "reward.h"
-#include "mcs.h"
-#include "heuristics/SortHeuristic.h"
+#include "mcsplit+DAL.h"
 
 using namespace std;
 
@@ -78,6 +60,7 @@ void set_default_arguments() {
     arguments.reward_policy.reward_policies_num = 2;
     arguments.reward_policy.switch_policy = CHANGE;
     arguments.reward_policy.dal_reward_policy = DAL_REWARD_MAX_NUM_DOMAINS;
+    arguments.reward_policy.neighbor_overlap = NO_OVERLAP;    // use neighbor overlap to select W. Must use CHANGE or NO_CHANGE policy
 }
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
@@ -404,6 +387,7 @@ int main(int argc, char **argv) {
     cout << "  -reward_policies_num:    " << arguments.reward_policy.reward_policies_num << endl;
     cout << "  -switch_policy:          " << arguments.reward_policy.switch_policy << endl;
     cout << "  -dal_reward_policy:      " << arguments.reward_policy.dal_reward_policy << endl;
+    cout << "  -neighbor_overlap:       " << arguments.reward_policy.neighbor_overlap << endl;
 
     cout << endl;
 
