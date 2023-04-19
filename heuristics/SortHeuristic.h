@@ -31,6 +31,12 @@ namespace SortHeuristic {
         vector<int> sort(const Graph &g) override;
     };
 
+    class LocalClusteringCoefficient : public Base {
+    public:
+        string name() override {return "LocalClusteringCoefficient";};
+        vector<int> sort(const Graph &g) override;
+    };
+
     /////////////// Parallel Heuristics ///////////////
 
     class Parallel : public Base {

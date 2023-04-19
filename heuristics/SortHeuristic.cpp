@@ -75,6 +75,34 @@ namespace SortHeuristic {
         return result;
     }
 
+    // https://en.wikipedia.org/wiki/Clustering_coefficient
+    vector<int> LocalClusteringCoefficient::sort(const Graph &g) {
+        if (VERBOSE) std::cout << "Sorting by Local Clustering Coefficient" << std::endl;
+        vector<int> result(g.n, 0);
+        for (int i = 0; i < g.n; i++) {
+            int degree = g.adjlist[i].adjNodes.size();
+            if (degree < 2) {
+                result[i] = 0;
+                continue;
+            }
+            int num_triangles = 0;
+            for (int j = 0; j < degree; j++) {
+                int v = g.adjlist[i].adjNodes[j].id;
+                for (int k = j + 1; k < degree; k++) {
+                    if (g.get(v, g.adjlist[i].adjNodes[k].id) == 1) {
+                        num_triangles++;
+                    }
+                }
+            }
+            result[i] = 2 * num_triangles * 100 / (degree * (degree - 1));
+        }
+        return result;
+    }
+
+    ///////////////////////////
+    // PARALLEL IMPLEMENTATIONS
+    ///////////////////////////
+
 
     vector<int> Parallel::sort(const Graph &g) {
 
@@ -90,7 +118,7 @@ namespace SortHeuristic {
             threads.emplace_back(std::thread([this, &index, &g] { run_worker(&index, g); }));
 
         // start working
-        run_worker(&index,g);
+        run_worker(&index, g);
 
         // wait for others to finish
         for (auto &thread: threads)
@@ -214,7 +242,7 @@ namespace SortHeuristic {
         std::fill(begin(BC_local), end(BC_local), 0.0);
 
         while (true) {
-            int my_index = (int)(*idx)--;
+            int my_index = (int) (*idx)--;
 
             if (my_index < 0)
                 break;
@@ -240,6 +268,6 @@ namespace SortHeuristic {
         }
         return results;
     }
-    
+
 }
 

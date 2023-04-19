@@ -52,7 +52,7 @@ static struct argp_option options[] = {
         {"big-first",            'b', 0,                   0, "First try to find an induced subgraph isomorphism, then decrement the target size"},
         {"timeout",              't', "timeout",           0, "Specify a timeout (seconds)"},
         {"dal_reward_policy",    'D', "dal_reward_policy", 0, "Specify the dal reward policy (num, max, avg)"},
-        {"sort_heuristic",       's', "sort_heuristic",    0, "Specify the sort heuristic (degree, pagerank, betweenness, closeness)"},
+        {"sort_heuristic",       's', "sort_heuristic",    0, "Specify the sort heuristic (degree, pagerank, betweenness, closeness, clustering)"},
         {0}};
 
 void set_default_arguments() {
@@ -148,8 +148,10 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                 arguments.sort_heuristic = new SortHeuristic::BetweennessCentrality();
             else if (string(arg) == "closeness")
                 arguments.sort_heuristic = new SortHeuristic::ClosenessCentrality();
+            else if (string(arg) == "clustering")
+                arguments.sort_heuristic = new SortHeuristic::LocalClusteringCoefficient();
             else
-                fail("Unknown sort heuristic (try degree, pagerank, betweenness, closeness)");
+                fail("Unknown sort heuristic (try degree, pagerank, betweenness, closeness, clustering)");
             break;
         case ARGP_KEY_ARG:
             if (arguments.arg_num == 0) {

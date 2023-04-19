@@ -295,8 +295,7 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
         incumbent = current;
         stats->bestcount = stats->cutbranches + 1;
         stats->bestnodes = stats->nodes;
-        // avoid printing size of each iteration if they are too close in time (save log space)
-        if (!arguments.quiet && clock() - stats->bestfind > 1000)
+        if (!arguments.quiet)
             cout << "Incumbent size: " << incumbent.size() << endl;
         stats->bestfind = clock();
 
