@@ -56,11 +56,11 @@ void set_default_arguments() {
     arguments.initialize_rewards = false; // if false, rewards are initialized to 0, else to sort_heuristic
     arguments.mcs_method = RL_DAL;
     arguments.swap_policy = McSPLIT_SD;
-    arguments.reward_policy.current_reward_policy = 0; // set starting policy (0:RL/LL, 1:DAL)
+    arguments.reward_policy.current_reward_policy = 1; // set starting policy (0:RL/LL, 1:DAL)
     arguments.reward_policy.reward_policies_num = 2;
     arguments.reward_policy.switch_policy = CHANGE;
     arguments.reward_policy.dal_reward_policy = DAL_REWARD_MAX_NUM_DOMAINS;
-    arguments.reward_policy.neighbor_overlap = NO_OVERLAP;    // use neighbor overlap to select W. Must use CHANGE or NO_CHANGE policy
+    arguments.reward_policy.neighbor_overlap = NO_OVERLAP;    // use neighbor overlap to select W
 }
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {

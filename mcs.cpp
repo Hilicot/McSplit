@@ -315,9 +315,9 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
            vector<Bidomain> &domains, vector<int> &left, vector<int> &right, unsigned int matching_size_goal,
            Stats *stats) {
     // FIXME we have 2 timeout systems, remove one of them (the first seems to not work...)
-    if (arguments.timeout && double(clock() - stats->start) / CLOCKS_PER_SEC > arguments.timeout) {
+    /*if (arguments.timeout && double(clock() - stats->start) / CLOCKS_PER_SEC > arguments.timeout) {
         return;
-    }
+    }*/
     if (stats->abort_due_to_timeout)
         return;
     stats->nodes++;
