@@ -51,7 +51,7 @@ void set_default_arguments() {
     arguments.filename1 = NULL;
     arguments.filename2 = NULL;
     arguments.timeout = 0;
-    arguments.max_iter = 50000;
+    arguments.max_iter = -1;
     arguments.arg_num = 0;
     arguments.sort_heuristic = new SortHeuristic::Degree();
     arguments.initialize_rewards = false; // if false, rewards are initialized to 0, else to sort_heuristic
@@ -173,10 +173,6 @@ static struct argp argp = {options, parse_opt, args_doc, doc};
 *******************************************************************************/
 
 bool check_sol(const Graph &g0, const Graph &g1, const vector<VtxPair> &solution) {
-    for (auto& pair: solution){
-        cout << "(" << pair.v << "," << pair.w << ")" << endl;
-    }
-
     vector<bool> used_left(g0.n, false);
     vector<bool> used_right(g1.n, false);
     for (unsigned int i = 0; i < solution.size(); i++) {
@@ -351,10 +347,10 @@ int main(int argc, char **argv) {
     vector<VtxPair> solution = mcs(g0_sorted, g1_sorted, (void *) &rewards, stats);
 
     // Convert to indices from original, unsorted graphs
-    /*for (auto &vtx_pair: solution) {
+    for (auto &vtx_pair: solution) {
         vtx_pair.v = vv0[vtx_pair.v];
         vtx_pair.w = vv1[vtx_pair.w];
-    }*/
+    }
 
     // auto stop = std::chrono::steady_clock::now();
     // auto time_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
