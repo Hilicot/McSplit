@@ -77,6 +77,7 @@ EXTERN struct arguments {
     char *filename1;
     char *filename2;
     int timeout;
+    int max_iter;
     int arg_num;
     SwapPolicy swap_policy;
     RewardPolicy reward_policy;

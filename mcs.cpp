@@ -280,8 +280,7 @@ int selectW_index(const Graph &g0, const Graph &g1, const vector<VtxPair> &curre
                 pair_reward += overlap_score*100;
             }
             // Compute regular reward for pair
-            gtype reward = rewards.get_pair_reward(v, vtx, false);
-            pair_reward += reward;
+            pair_reward += rewards.get_pair_reward(v, vtx, false);
 
             // Check if this is the best pair so far
             if (pair_reward > max_g) {
@@ -321,7 +320,10 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
     if (stats->abort_due_to_timeout)
         return;
     stats->nodes++;
-    // if (arguments.verbose) show(current, domains, left, right, stats);
+    if(arguments.max_iter > 0 && stats->nodes > arguments.max_iter) {
+        cout << "max_iter" << endl;
+        return;
+    }
 
     if (current.size() > incumbent.size()) { // incumbent 现任的
         incumbent = current;
@@ -338,6 +340,7 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
     unsigned int bound = current.size() + calc_bound(domains);
     if (bound <= incumbent.size() || bound < matching_size_goal) {
         stats->cutbranches++;
+        // cout << "nodes: " << stats->nodes  << " pruned" << endl;
         return;
     }
     // exit branch if goal already reached in big_first policy
@@ -369,16 +372,9 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
         wselected[w] = 1;
         std::swap(right[bd.r + tmp_idx], right[bd.r + bd.right_len]);
         rewards.update_policy_counter(false);
-
-#ifdef DEBUG
-        cout << "v= " << v << " w= " << w << endl;
-        unsigned int m;
-        for (m = 0; m < left.size(); m++)
-            cout << left[m] << " ";
-        cout << endl;
-        for (m = 0; m < right.size(); m++)
-            cout << right[m] << " ";
-        cout << endl;
+#if (DEBUG)
+        if(stats->nodes % 100000 == 0)
+            std::cout << "nodes: " << stats->nodes << ", v: " << v << ", w: " << w << ", size: " << current.size() << ", dom: "<< bd.left_len << " " << bd.right_len << std::endl;
 #endif
         unsigned int cur_len = current.size();
         auto result = generate_new_domains(domains, bd_idx, current, g0_matched, g1_matched, left, right, g0, g1,

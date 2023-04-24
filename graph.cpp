@@ -82,6 +82,7 @@ Graph induced_subgraph(struct Graph &g, std::vector<int> vv) {
                          [&](Node a, Node b) { return a.id < b.id; });
     }
 
+    subg.e = g.e;
     return subg;
 }
 
