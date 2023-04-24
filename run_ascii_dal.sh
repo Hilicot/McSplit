@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # run just one small experiment
-g0=/home/calabrese/Projects/mcsplit/McSplit2/dataset/small/mcs10_b03m_s100.A00
-g1=/home/calabrese/Projects/mcsplit/McSplit2/dataset/small/mcs10_b03m_s100.B00
-./build/mcsplit-dal -t 10 -s closeness min_max $g0 $g1
+# g0=/home/calabrese/Projects/mcsplit/McSplit2/dataset/small/mcs10_b03m_s100.A00
+# g1=/home/calabrese/Projects/mcsplit/McSplit2/dataset/small/mcs10_b03m_s100.B00
+# ./build/mcsplit-dal -t 10 -s closeness min_max $g0 $g1
 
-exit 0
+# exit 0
 
 results_folder="results"
 desc=${1:-Default description}
