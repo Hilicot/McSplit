@@ -175,18 +175,31 @@ static struct argp argp = {options, parse_opt, args_doc, doc};
 bool check_sol(const Graph &g0, const Graph &g1, const vector<VtxPair> &solution) {
     vector<bool> used_left(g0.n, false);
     vector<bool> used_right(g1.n, false);
-    for (unsigned int i = 0; i < solution.size(); i++) {
+    for (unsigned int i = 0; i < solution.size(); i++)
+    {
         struct VtxPair p0 = solution[i];
         if (used_left[p0.v] || used_right[p0.w])
+        {
+            cout << "Used left: " << used_left[p0.v] << endl;
+            cout << "Used right: " << used_right[p0.w] << endl;
             return false;
+        }
         used_left[p0.v] = true;
         used_right[p0.w] = true;
         if (g0.adjlist[p0.v].label != g1.adjlist[p0.w].label)
+        {
+            cout << g0.adjlist[p0.v].label << " != " << g1.adjlist[p0.w].label << endl;
             return false;
-        for (unsigned int j = i + 1; j < solution.size(); j++) {
+        }
+        for (unsigned int j = i + 1; j < solution.size(); j++)
+        {
             struct VtxPair p1 = solution[j];
             if (g0.get(p0.v, p1.v) != g1.get(p0.w, p1.w))
+            {
+                cout << "Edge left (" << p0.v << " -> " << p1.v << ") = " << g0.get(p0.v, p1.v) << endl;
+                cout << "Edge right (" << p0.w << " -> " << p1.w << ") = " << g1.get(p0.w, p1.w) << endl;
                 return false;
+            }
         }
     }
     return true;
