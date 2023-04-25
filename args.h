@@ -18,7 +18,9 @@ enum SwapPolicy {
 
 enum Heuristic {
     min_max,
-    min_product
+    min_product,
+    rewards_based,
+    heuristic_based
 };
 
 enum RewardSwitchPolicy {

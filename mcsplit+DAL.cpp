@@ -19,7 +19,7 @@ static void fail(std::string msg) {
                              Command-line arguments
 *******************************************************************************/
 
-static char doc[] = "Find a maximum clique in a graph in DIMACS format\vHEURISTIC can be min_max or min_product";
+static char doc[] = "Find a maximum clique in a graph in DIMACS format\vHEURISTIC can be min_max or min_product or rewards_based or heuristic_based";
 static char args_doc[] = "HEURISTIC FILENAME1 FILENAME2";
 static struct argp_option options[] = {
         {"quiet",                'q', 0,                   0, "Quiet output"},
@@ -145,8 +145,12 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                     arguments.heuristic = min_max;
                 else if (std::string(arg) == "min_product")
                     arguments.heuristic = min_product;
+                else if (std::string(arg) == "rewards_based")
+                    arguments.heuristic = rewards_based;
+                else if (std::string(arg) == "heuristic_based")
+                    arguments.heuristic = heuristic_based;
                 else
-                    fail("Unknown heuristic (try min_max or min_product)");
+                    fail("Unknown heuristic (try min_max or min_product or rewards_based)");
             } else if (arguments.arg_num == 1) {
                 arguments.filename1 = arg;
             } else if (arguments.arg_num == 2) {
