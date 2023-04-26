@@ -379,7 +379,10 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
     int tmp_idx;
 
     // select vertex v (vertex with max reward)
-    tmp_idx = selectV_index(left, rewards, bd.l, bd.left_len);
+    if(arguments.random_start && incumbent.size() == 0) // First vertex can optionally be random
+        tmp_idx = rand() % bd.left_len;
+    else
+        tmp_idx = selectV_index(left, rewards, bd.l, bd.left_len);
     v = left[bd.l + tmp_idx];
     remove_vtx_from_array(left, bd.l, bd.left_len, tmp_idx); // remove v from bidomain
     rewards.update_policy_counter(false);

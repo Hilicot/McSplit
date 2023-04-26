@@ -52,6 +52,7 @@ void set_default_arguments() {
     arguments.filename2 = NULL;
     arguments.timeout = 0;
     arguments.max_iter = -1;
+    arguments.random_start = false;
     arguments.arg_num = 0;
     arguments.sort_heuristic = new SortHeuristic::Degree();
     arguments.initialize_rewards = false; // if false, rewards are initialized to 0, else to sort_heuristic

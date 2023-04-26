@@ -72,6 +72,7 @@ EXTERN struct arguments {
     bool edge_labelled;
     bool vertex_labelled;
     bool big_first;
+    bool random_start;
     Heuristic heuristic;
     SortHeuristic::Base *sort_heuristic;
     bool initialize_rewards;
