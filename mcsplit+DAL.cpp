@@ -52,7 +52,7 @@ void set_default_arguments() {
     arguments.filename2 = NULL;
     arguments.timeout = 0;
     arguments.max_iter = -1;
-    arguments.random_start = false;
+    arguments.random_start = true;
     arguments.arg_num = 0;
     arguments.sort_heuristic = new SortHeuristic::Degree();
     arguments.initialize_rewards = false; // if false, rewards are initialized to 0, else to sort_heuristic
@@ -397,6 +397,7 @@ int main(int argc, char **argv) {
 
     cout << "Arguments:" << endl;
     cout << "  -t:                      " << arguments.timeout << endl;
+    cout << "  -random_start:           " << arguments.random_start << endl;
     cout << "  -sort_heuristic:         " << arguments.sort_heuristic->name() << endl;
     cout << "  -initialize_reward:      " << arguments.initialize_rewards << endl;
     cout << "  -mcs_method:             " << arguments.mcs_method << endl;
