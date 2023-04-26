@@ -33,6 +33,7 @@ static struct argp_option options[] = {
         {"vertex-labelled-only", 'x', 0,                   0, "Use vertex labels, but not edge labels"},
         {"big-first",            'b', 0,                   0, "First try to find an induced subgraph isomorphism, then decrement the target size"},
         {"timeout",              't', "timeout",           0, "Specify a timeout (seconds)"},
+        {"random_start",         'r', 0,                   0, "Set random start to true"},
         {"dal_reward_policy",    'D', "dal_reward_policy", 0, "Specify the dal reward policy (num, max, avg)"},
         {"sort_heuristic",       's', "sort_heuristic",    0, "Specify the sort heuristic (degree, pagerank, betweenness, closeness, clustering, katz)"},
         {0}};
@@ -52,7 +53,7 @@ void set_default_arguments() {
     arguments.filename2 = NULL;
     arguments.timeout = 0;
     arguments.max_iter = -1;
-    arguments.random_start = true;
+    arguments.random_start = false;
     arguments.arg_num = 0;
     arguments.sort_heuristic = new SortHeuristic::Degree();
     arguments.initialize_rewards = false; // if false, rewards are initialized to 0, else to sort_heuristic
@@ -113,6 +114,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             break;
         case 't':
             arguments.timeout = std::stoi(arg);
+            break;
+        case 'r':
+            arguments.random_start = true;
             break;
         case 'D':
             if (string(arg) == "num")
