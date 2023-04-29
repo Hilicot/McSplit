@@ -1,21 +1,4 @@
-#include "graph.h"
-
-#include <algorithm>
-#include <numeric>
-#include <iostream>
-#include <set>
-#include <string>
-#include <mutex>
-#include <condition_variable>
-#include <argp.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <thread>
-#include "stats.h"
-#include "args.h"
-#include "reward.h"
-#include "mcs.h"
+#include "mcsplit+DAL.h"
 
 using namespace std;
 
@@ -36,7 +19,7 @@ static void fail(std::string msg) {
                              Command-line arguments
 *******************************************************************************/
 
-static char doc[] = "Find a maximum clique in a graph in DIMACS format\vHEURISTIC can be min_max or min_product";
+static char doc[] = "Find a maximum clique in a graph in DIMACS format\vHEURISTIC can be min_max or min_product or rewards_based or heuristic_based";
 static char args_doc[] = "HEURISTIC FILENAME1 FILENAME2";
 static struct argp_option options[] = {
         {"quiet",                'q', 0,                   0, "Quiet output"},
@@ -50,8 +33,9 @@ static struct argp_option options[] = {
         {"vertex-labelled-only", 'x', 0,                   0, "Use vertex labels, but not edge labels"},
         {"big-first",            'b', 0,                   0, "First try to find an induced subgraph isomorphism, then decrement the target size"},
         {"timeout",              't', "timeout",           0, "Specify a timeout (seconds)"},
+        {"random_start",         'r', 0,                   0, "Set random start to true"},
         {"dal_reward_policy",    'D', "dal_reward_policy", 0, "Specify the dal reward policy (num, max, avg)"},
-        {"sort_heuristic",       's', "sort_heuristic",    0, "Specify the sort heuristic (degree, pagerank)"},
+        {"sort_heuristic",       's', "sort_heuristic",    0, "Specify the sort heuristic (degree, pagerank, betweenness, closeness, clustering, katz)"},
         {0}};
 
 void set_default_arguments() {
@@ -68,15 +52,18 @@ void set_default_arguments() {
     arguments.filename1 = NULL;
     arguments.filename2 = NULL;
     arguments.timeout = 0;
+    arguments.max_iter = -1;
+    arguments.random_start = false;
     arguments.arg_num = 0;
-    arguments.sort_heuristic = SortHeuristic::DEGREE;
+    arguments.sort_heuristic = new SortHeuristic::Degree();
     arguments.initialize_rewards = false; // if false, rewards are initialized to 0, else to sort_heuristic
     arguments.mcs_method = RL_DAL;
     arguments.swap_policy = McSPLIT_SD;
     arguments.reward_policy.current_reward_policy = 1; // set starting policy (0:RL/LL, 1:DAL)
-    arguments.reward_policy.reward_policies_num = 1; 
-    arguments.reward_policy.switch_policy = NO_CHANGE;
+    arguments.reward_policy.reward_policies_num = 2;
+    arguments.reward_policy.switch_policy = CHANGE;
     arguments.reward_policy.dal_reward_policy = DAL_REWARD_MAX_NUM_DOMAINS;
+    arguments.reward_policy.neighbor_overlap = NO_OVERLAP;    // use neighbor overlap to select W
 }
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
@@ -128,6 +115,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
         case 't':
             arguments.timeout = std::stoi(arg);
             break;
+        case 'r':
+            arguments.random_start = true;
+            break;
         case 'D':
             if (string(arg) == "num")
                 arguments.reward_policy.dal_reward_policy = DAL_REWARD_MAX_NUM_DOMAINS;
@@ -140,11 +130,19 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             break;
         case 's':
             if (string(arg) == "degree")
-                arguments.sort_heuristic = SortHeuristic::DEGREE;
+                arguments.sort_heuristic = new SortHeuristic::Degree();
             else if (string(arg) == "pagerank")
-                arguments.sort_heuristic = SortHeuristic::PAGE_RANK;
+                arguments.sort_heuristic = new SortHeuristic::PageRank();
+            else if (string(arg) == "betweenness")
+                arguments.sort_heuristic = new SortHeuristic::BetweennessCentrality();
+            else if (string(arg) == "closeness")
+                arguments.sort_heuristic = new SortHeuristic::ClosenessCentrality();
+            else if (string(arg) == "clustering")
+                arguments.sort_heuristic = new SortHeuristic::LocalClusteringCoefficient();
+            else if (string(arg) == "katz")
+                arguments.sort_heuristic = new SortHeuristic::KatzCentrality();
             else
-                fail("Unknown sort heuristic (try degree, pagerank)");
+                fail("Unknown sort heuristic (try degree, pagerank, betweenness, closeness, clustering, katz)");
             break;
         case ARGP_KEY_ARG:
             if (arguments.arg_num == 0) {
@@ -152,8 +150,12 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
                     arguments.heuristic = min_max;
                 else if (std::string(arg) == "min_product")
                     arguments.heuristic = min_product;
+                else if (std::string(arg) == "rewards_based")
+                    arguments.heuristic = rewards_based;
+                else if (std::string(arg) == "heuristic_based")
+                    arguments.heuristic = heuristic_based;
                 else
-                    fail("Unknown heuristic (try min_max or min_product)");
+                    fail("Unknown heuristic (try min_max or min_product or rewards_based)");
             } else if (arguments.arg_num == 1) {
                 arguments.filename1 = arg;
             } else if (arguments.arg_num == 2) {
@@ -180,32 +182,36 @@ static struct argp argp = {options, parse_opt, args_doc, doc};
 *******************************************************************************/
 
 bool check_sol(const Graph &g0, const Graph &g1, const vector<VtxPair> &solution) {
-    return true;
     vector<bool> used_left(g0.n, false);
     vector<bool> used_right(g1.n, false);
-    for (unsigned int i = 0; i < solution.size(); i++) {
+    for (unsigned int i = 0; i < solution.size(); i++)
+    {
         struct VtxPair p0 = solution[i];
         if (used_left[p0.v] || used_right[p0.w])
+        {
+            cout << "Used left: " << used_left[p0.v] << endl;
+            cout << "Used right: " << used_right[p0.w] << endl;
             return false;
+        }
         used_left[p0.v] = true;
         used_right[p0.w] = true;
         if (g0.adjlist[p0.v].label != g1.adjlist[p0.w].label)
+        {
+            cout << g0.adjlist[p0.v].label << " != " << g1.adjlist[p0.w].label << endl;
             return false;
-        for (unsigned int j = i + 1; j < solution.size(); j++) {
+        }
+        for (unsigned int j = i + 1; j < solution.size(); j++)
+        {
             struct VtxPair p1 = solution[j];
             if (g0.get(p0.v, p1.v) != g1.get(p0.w, p1.w))
+            {
+                cout << "Edge left (" << p0.v << " -> " << p1.v << ") = " << g0.get(p0.v, p1.v) << endl;
+                cout << "Edge right (" << p0.w << " -> " << p1.w << ") = " << g1.get(p0.w, p1.w) << endl;
                 return false;
+            }
         }
     }
     return true;
-}
-
-vector<int> calculate_degrees(const Graph &g) {
-    vector<int> degree(g.n, 0);
-    for (int v = 0; v < g.n; v++) {
-        degree[v] = g.adjlist[v].adjNodes.size() - 1;
-    }
-    return degree;
 }
 
 int sum(const vector<int> &vec) {
@@ -235,68 +241,6 @@ bool swap_graphs(Graph g0, Graph g1) {
             return false;
     }
 }
-
-// Codice ripreso da "Purtroppo" su GitHub. Ciao "Purtroppo", ora fai parte della ricerca
-// https://github.com/purtroppo/PageRank
-// ATTENZIONE: il codice è stato modificato per adattarlo al progetto, non supporta più weighted graphs
-std::vector<int> page_rank(const Graph &g) {
-    constexpr float damping_factor = 0.85f;
-    constexpr float epsilon = 0.00001f;
-    std::vector<int> out_links = std::vector<int>(g.n, 0);
-    for (int i = 0; i < g.n; i++) {
-        out_links[i] = g.adjlist[i].adjNodes.size();
-    }
-    // create a stochastic matrix (inefficient for big/sparse graphs, could be transformed into adj list (or just use the Graph's internal adj_list?))
-    std::vector<std::vector<float>> stochastic_g = std::vector<std::vector<float>>(g.n, std::vector<float>(g.n, 0.0f));
-    for (int i = 0; i < g.n; i++) {
-        if (!out_links[i]) {
-            for (int j = 0; j < g.n; j++) {
-                stochastic_g[i][j] = 1.0f / (float) g.n;
-            }
-        } else {
-            for (auto &w: g.adjlist[i].adjNodes) {
-                stochastic_g[i][w.id] = 1.0f / (float) out_links[i];
-            }
-        }
-    }
-    std::vector<int> result(g.n, 0);
-    std::vector<float> ranks(g.n, 0);
-    std::vector<float> p(g.n, 1.0 / g.n);
-    std::vector<std::vector<float>> transposed = std::vector<std::vector<float>>(g.n, std::vector<float>(g.n, 0.0f));
-    // transpose matrix
-    for (int i = 0; i < g.n; i++) {
-        for (int j = 0; j < g.n; j++) {
-            transposed[i][j] = stochastic_g[j][i];
-        }
-    }
-    while (true) {
-        std::fill(ranks.begin(), ranks.end(), 0);
-        for (int i = 0; i < g.n; i++) {
-            for (int j = 0; j < g.n; j++) {
-                ranks[i] = ranks[i] + transposed[i][j] * p[j];
-            }
-        }
-        for (int i = 0; i < g.n; i++) {
-            ranks[i] = damping_factor * ranks[i] + (1.0 - damping_factor) / (float) g.n;
-        }
-        float error = 0.0f;
-        for (int i = 0; i < g.n; i++) {
-            error += std::abs(ranks[i] - p[i]);
-        }
-        if (error < epsilon) {
-            break;
-        }
-
-        for (int i = 0; i < g.n; i++) {
-            p[i] = ranks[i];
-        }
-    }
-    for (int i = 0; i < ranks.size(); i++) {
-        result[i] = ranks[i] / epsilon;
-    }
-    return result;
-}
-
 
 int main(int argc, char **argv) {
     set_default_arguments();
@@ -352,14 +296,9 @@ int main(int argc, char **argv) {
     stats->start = clock();
 
     // static sort order
-    std::vector<int> g0_deg, g1_deg;
-    if (arguments.sort_heuristic == SortHeuristic::DEGREE) {
-        g0_deg = calculate_degrees(g0);
-        g1_deg = calculate_degrees(g1);
-    } else if (arguments.sort_heuristic == SortHeuristic::PAGE_RANK) {
-        g0_deg = page_rank(g0);
-        g1_deg = page_rank(g1);
-    }
+    arguments.sort_heuristic->set_num_threads(10);
+    std::vector<int> g0_deg = arguments.sort_heuristic->sort(g0);
+    std::vector<int> g1_deg = arguments.sort_heuristic->sort(g1);
 
     // As implemented here, g1_dense and g0_dense are false for all instances
     // in the Experimental Evaluation section of the paper.  Thus,
@@ -373,13 +312,13 @@ int main(int argc, char **argv) {
     //  #endif
     vector<int> vv0(g0.n);
     std::iota(std::begin(vv0), std::end(vv0), 0);
-    bool g1_dense = sum(g1_deg) > g1.n * (g1.n - 1);
+    bool g1_dense = false; //sum(g1_deg) > g1.n * (g1.n - 1);
     std::stable_sort(std::begin(vv0), std::end(vv0),
                      [&](int a, int b) { return g1_dense ? (g0_deg[a] < g0_deg[b]) : (g0_deg[a] > g0_deg[b]); });
 
     vector<int> vv1(g1.n);
     std::iota(std::begin(vv1), std::end(vv1), 0);
-    bool g0_dense = sum(g0_deg) > g0.n * (g0.n - 1);
+    bool g0_dense = false; //sum(g0_deg) > g0.n * (g0.n - 1);
     std::stable_sort(std::begin(vv1), std::end(vv1),
                      [&](int a, int b) { //????????????????????????????????????????????????????
                          return g0_dense ? (g1_deg[a] < g1_deg[b]) : (g1_deg[a] > g1_deg[b]);
@@ -451,7 +390,7 @@ int main(int argc, char **argv) {
     }
 #endif
     if (!check_sol(g0, g1, solution))
-        fail("*** Error: Invalid solution\n");
+        cout << "*** Error: Invalid solution" << endl;
 
     cout << "Solution size " << solution.size() << std::endl;
     for (int i = 0; i < g0.n; i++)
@@ -460,11 +399,26 @@ int main(int argc, char **argv) {
                 cout << "(" << solution[j].v << " -> " << solution[j].w << ") ";
     cout << std::endl;
 
+    cout << "Arguments:" << endl;
+    cout << "  -t:                      " << arguments.timeout << endl;
+    cout << "  -random_start:           " << arguments.random_start << endl;
+    cout << "  -sort_heuristic:         " << arguments.sort_heuristic->name() << endl;
+    cout << "  -initialize_reward:      " << arguments.initialize_rewards << endl;
+    cout << "  -mcs_method:             " << arguments.mcs_method << endl;
+    cout << "  -swap_policy:            " << arguments.swap_policy << endl;
+    cout << "  -current_reward_policy:  " << arguments.reward_policy.current_reward_policy << endl;
+    cout << "  -reward_policies_num:    " << arguments.reward_policy.reward_policies_num << endl;
+    cout << "  -switch_policy:          " << arguments.reward_policy.switch_policy << endl;
+    cout << "  -dal_reward_policy:      " << arguments.reward_policy.dal_reward_policy << endl;
+    cout << "  -neighbor_overlap:       " << arguments.reward_policy.neighbor_overlap << endl;
+
+    cout << endl;
+
     cout << "Nodes:                      " << stats->nodes << endl;
     cout << "Cut branches:               " << stats->cutbranches << endl;
-    cout << "Conflicts:                    " << stats->conflicts << endl;
-    printf("CPU time (ms):              %15ld\n", time_elapsed * 1000 / CLOCKS_PER_SEC);
-    printf("FindBest time (ms):              %15ld\n", time_find * 1000 / CLOCKS_PER_SEC);
+    cout << "Conflicts:                  " << stats->conflicts << endl;
+    printf("CPU time (ms):               %15ld\n", time_elapsed * 1000 / CLOCKS_PER_SEC);
+    printf("FindBest time (ms):          %15ld\n", time_find * 1000 / CLOCKS_PER_SEC);
 #ifdef Best
     cout << "Best nodes:                 " << stats->bestnodes << endl;
     cout << "Best count:                 " << stats->bestcount << endl;
