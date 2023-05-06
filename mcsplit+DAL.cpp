@@ -82,6 +82,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             if (arguments.dimacs || arguments.lad)
                 fail("The -d or -l options cannot be used together with -as.\n");
             arguments.ascii = true;
+            break;
         case 'q':
             arguments.quiet = true;
             break;
