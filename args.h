@@ -82,6 +82,7 @@ EXTERN struct arguments {
     int timeout;
     int max_iter;
     int arg_num;
+    int save_search_data;
     SwapPolicy swap_policy;
     RewardPolicy reward_policy;
 } arguments;

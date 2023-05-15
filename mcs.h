@@ -21,6 +21,7 @@ struct Bidomain
     int l, r; // start indices of left and right sets
     int left_len, right_len;
     bool is_adjacent;
+    Bidomain() : l(0), r(0), left_len(0), right_len(0), is_adjacent(false){};
     Bidomain(int l, int r, int left_len, int right_len, bool is_adjacent) : l(l),
                                                                             r(r),
                                                                             left_len(left_len),

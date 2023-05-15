@@ -3,6 +3,8 @@
 #include <set>
 #include "mcs.h"
 #include "reward.h"
+#include "save_search_data/save_search_data.h"
+#define DEBUG 0
 
 using namespace std;
 
@@ -175,6 +177,9 @@ generate_new_domains(const vector<Bidomain> &d, int bd_idx, vector<VtxPair> &cur
         }
     }
 
+    if(leaves_match_size > 0)
+        cout << "leaves_match_size: " << leaves_match_size << endl;
+
     vector<Bidomain> new_d;
     new_d.reserve(d.size());
     int l, r, j = -1;
@@ -204,13 +209,6 @@ generate_new_domains(const vector<Bidomain> &d, int bd_idx, vector<VtxPair> &cur
                std::min(left_len_noedge, right_len_noedge);
         total += temp;
 
-#ifdef DEBUG
-
-        printf("adj=%d ,noadj=%d ,old=%d ,temp=%d \n", std::min(left_len, right_len),
-               std::min(left_len_noedge, right_len_noedge), std::min(old_bd.left_len, old_bd.right_len), temp);
-        cout << "j=" << j << "  idx=" << bd_idx << endl;
-        cout << "gl=" << lgrade[v] << " gr=" << rgrade[w] << endl;
-#endif
         if (left_len_noedge && right_len_noedge)
             new_d.push_back({l + left_len, r + right_len, left_len_noedge, right_len_noedge, old_bd.is_adjacent});
         if (multiway && left_len && right_len) {
@@ -246,20 +244,6 @@ generate_new_domains(const vector<Bidomain> &d, int bd_idx, vector<VtxPair> &cur
         }
     }
 
-#ifdef DEBUG0
-    cout << "new domains are " << endl;
-    for (const Bidomain &testd : new_d)
-    {
-        l = testd.l;
-        r = testd.r;
-        for (j = 0; j < testd.left_len; j++)
-            cout << left[l + j] << " ";
-        cout << " ; ";
-        for (j = 0; j < testd.right_len; j++)
-            cout << right[r + j] << " ";
-        cout << endl;
-    }
-#endif
     NewBidomainResult result = {new_d, total};
     return result;
 }
@@ -342,7 +326,6 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
         return;
     stats->nodes++;
     if (arguments.max_iter > 0 && stats->nodes > arguments.max_iter) {
-        cout << "max_iter" << endl;
         return;
     }
 
@@ -387,6 +370,11 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
     remove_vtx_from_array(left, bd.l, bd.left_len, tmp_idx); // remove v from bidomain
     rewards.update_policy_counter(false);
 
+    // save stats to save the search data
+    SearchData sd;
+    if(arguments.save_search_data)
+        sd = SearchData(incumbent.size(), bd, left, right);
+
     // Try assigning v to each vertex w in the colour class beginning at bd.r, in turn
     vector<int> wselected(g1.n, 0);
     bd.right_len--; //
@@ -397,7 +385,7 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
         std::swap(right[bd.r + tmp_idx], right[bd.r + bd.right_len]);
         rewards.update_policy_counter(false);
 #if (DEBUG)
-        if(stats->nodes % 100000 == 0)
+        if(stats->nodes % 1 == 0 && stats->nodes > 00)
             std::cout << "nodes: " << stats->nodes << ", v: " << v << ", w: " << w << ", size: " << current.size() << ", dom: "<< bd.left_len << " " << bd.right_len << std::endl;
 #endif
         unsigned int cur_len = current.size();
@@ -413,6 +401,9 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
               stats);
         if (stats->abort_due_to_timeout) // hard timeout (else it gets stuck when trying to end the program gracefully)
             return;
+        if (arguments.max_iter > 0 && stats->nodes > arguments.max_iter) {
+            return;
+        }
         while (current.size() > cur_len) {
             VtxPair pr = current.back();
             current.pop_back();
@@ -423,8 +414,10 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
     bd.right_len++;
     if (bd.left_len == 0)
         remove_bidomain(domains, bd_idx);
+
     solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains, left, right, matching_size_goal,
           stats);
+
 }
 
 vector<VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *stats) {

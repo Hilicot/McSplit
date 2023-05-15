@@ -36,6 +36,7 @@ static struct argp_option options[] = {
         {"random_start",         'r', 0,                   0, "Set random start to true"},
         {"dal_reward_policy",    'D', "dal_reward_policy", 0, "Specify the dal reward policy (num, max, avg)"},
         {"sort_heuristic",       's', "sort_heuristic",    0, "Specify the sort heuristic (degree, pagerank, betweenness, closeness, clustering, katz)"},
+        {"save_pairs",           'S', 0,                   0, "Save vertex v and pairs (v,w) as dataset of the GNN model"},
         {0}};
 
 void set_default_arguments() {
@@ -55,6 +56,7 @@ void set_default_arguments() {
     arguments.max_iter = -1;
     arguments.random_start = false;
     arguments.arg_num = 0;
+    arguments.save_search_data = false;
     arguments.sort_heuristic = new SortHeuristic::Degree();
     arguments.initialize_rewards = false; // if false, rewards are initialized to 0, else to sort_heuristic
     arguments.mcs_method = RL_DAL;
@@ -118,6 +120,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             break;
         case 'r':
             arguments.random_start = true;
+            break;
+        case 'S':
+            arguments.save_search_data = true;
             break;
         case 'D':
             if (string(arg) == "num")
@@ -223,7 +228,7 @@ int sum(const vector<int> &vec) {
  * based on arguments.swap_policy, return true if the graphs needs to be swapped.
  * McSPLIT_SD and McSPLIT_SO are based on Trimble's PHD thesis https://theses.gla.ac.uk/83350/
  */
-bool swap_graphs(Graph g0, Graph g1) {
+bool swap_graphs(Graph &g0, Graph &g1) {
     switch (arguments.swap_policy) {
         case McSPLIT_SD: { // swap if density extremeness of g1 is bigger than that of g0
             // get densities
