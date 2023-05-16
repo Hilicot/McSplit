@@ -33,6 +33,7 @@ struct Bidomain
 struct NewBidomainResult{
     vector<Bidomain> new_domains;
     int reward;
+    int increase;
 };
 
 vector<VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *stats);

@@ -4,17 +4,38 @@
 #include "../mcs.h"
 
 
-struct SearchData {
-    int before_size;
+class SearchData {
+public:
+    enum search_data_type {
+        V, W
+    };
+    search_data_type type = V;
     vector<int> left_bidomain;
     vector<int> right_bidomain;
+    vector<int> vertex_scores;
 
-    SearchData(): before_size(0), left_bidomain(vector<int>()), right_bidomain(vector<int>()) {};
+    SearchData() : left_bidomain(vector<int>()), right_bidomain(vector<int>()), vertex_scores(vector<int>()) {};
 
-    SearchData(int before_size, const Bidomain &bidomain, const vector<int> &left, const vector<int> &right);
+    SearchData(const Bidomain &bidomain, const vector<int> &left, const vector<int> &right);
+
+    virtual void record_score(int vtx, int score);
+
+    void save();
+
+protected:
+    void record_score_backend(int vtx, int score, const vector<int> &indices);
 };
 
+class SearchDataW : public SearchData {
+    int v;
+    search_data_type type = W;
+public:
+    SearchDataW() : SearchData(), v(-1) {};
 
-void save_vertex_v();
+    SearchDataW(const Bidomain &bidomain, const vector<int> &left, const vector<int> &right, int v);
+
+    void record_score(int vtx, int score) override;
+};
+
 
 #endif //MCSPLITDAL_SAVE_SEARCH_DATA_H
