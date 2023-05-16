@@ -9,14 +9,14 @@ public:
     enum search_data_type {
         V, W
     };
-    search_data_type type = V;
+    search_data_type type;
     vector<int> left_bidomain;
     vector<int> right_bidomain;
     vector<int> vertex_scores;
 
     SearchData() : left_bidomain(vector<int>()), right_bidomain(vector<int>()), vertex_scores(vector<int>()) {};
 
-    SearchData(const Bidomain &bidomain, const vector<int> &left, const vector<int> &right);
+    SearchData(const Bidomain &bidomain, const vector<int> &left, const vector<int> &right, search_data_type type=V);
 
     virtual void record_score(int vtx, int score);
 
@@ -28,11 +28,11 @@ protected:
 
 class SearchDataW : public SearchData {
     int v;
-    search_data_type type = W;
+    search_data_type type;
 public:
     SearchDataW() : SearchData(), v(-1) {};
 
-    SearchDataW(const Bidomain &bidomain, const vector<int> &left, const vector<int> &right, int v);
+    SearchDataW(const Bidomain &bidomain, const vector<int> &left, const vector<int> &right, int v, search_data_type type=W);
 
     void record_score(int vtx, int score) override;
 };

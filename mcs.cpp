@@ -66,7 +66,7 @@ int selectV_index(const vector<int> &arr, const Rewards &rewards, int start_idx,
 }
 
 int select_bidomain(const vector<Bidomain> &domains, const vector<int> &left, const Rewards &rewards,
-                    int current_matching_size) {
+                    int current_matching_size, Bidomain *previous_bd) {
     // Select the bidomain with the smallest max(leftsize, rightsize), breaking
     // ties on the smallest vertex index in the left set
     int min_size = INT_MAX;
@@ -79,6 +79,9 @@ int select_bidomain(const vector<Bidomain> &domains, const vector<int> &left, co
 
     for (i = 0; i < domains.size(); i++) {
         const Bidomain &bd = domains[i];
+        if (previous_bd != nullptr && previous_bd->left_len == bd.left_len && previous_bd->right_len == bd.right_len && previous_bd->l == bd.l && previous_bd->r == bd.r && previous_bd->is_adjacent == bd.is_adjacent)
+            return i;
+
         if (arguments.connected && current_matching_size > 0 && !bd.is_adjacent)
             continue;
         if (arguments.heuristic == rewards_based) {
@@ -317,7 +320,7 @@ void remove_bidomain(vector<Bidomain> &domains, int idx) {
 int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
           vector<VtxPair> &incumbent,
           vector<VtxPair> &current, vector<int> &g0_matched, vector<int> &g1_matched,
-          vector<Bidomain> &domains, vector<int> &left, vector<int> &right, SearchData *vsd, unsigned int matching_size_goal,
+          vector<Bidomain> &domains, vector<int> &left, vector<int> &right, Bidomain *current_bd, SearchData *vsd, unsigned int matching_size_goal,
           Stats *stats) {
     bool is_first_v_iter = false;
 
@@ -355,12 +358,13 @@ int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
         return 0;
 
     // select bidomain based on heuristic
-    int bd_idx = select_bidomain(domains, left, rewards, current.size());
+    int bd_idx = select_bidomain(domains, left, rewards, current.size(), current_bd);
     if (bd_idx == -1) { // In the MCCS case, there may be nothing we can branch on
         return 0;
     }
     Bidomain &bd = domains[bd_idx];
-    if (arguments.save_search_data and vsd == nullptr) {
+
+    if (arguments.save_search_data && vsd == nullptr) {
         vsd = new SearchData(bd, left, right);
         is_first_v_iter = true;
     }
@@ -374,6 +378,7 @@ int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
     else
         tmp_idx = selectV_index(left, rewards, bd.l, bd.left_len);
     v = left[bd.l + tmp_idx];
+    if (std::find(vsd->left_bidomain.begin(), vsd->left_bidomain.end(), v) == vsd->left_bidomain.end()) exit(1);
     remove_vtx_from_array(left, bd.l, bd.left_len, tmp_idx); // remove v from bidomain
     rewards.update_policy_counter(false);
 
@@ -406,7 +411,7 @@ int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
 
         stats->dl++;
         int increase = solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, new_domains, left, right,
-                             nullptr, matching_size_goal, stats);
+                             &bd, nullptr, matching_size_goal, stats);
         increase += result.increase; // count the current pair (v,w) and eventual leaves
 
         if (increase > max_w_increase)
@@ -429,8 +434,11 @@ int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
         }
     }
     bd.right_len++;
-    if (bd.left_len == 0)
+    bool completed_bidomain = false;
+    if (bd.left_len == 0) {
         remove_bidomain(domains, bd_idx);
+        completed_bidomain = true;
+    }
 
     if (arguments.save_search_data) {
         vsd->record_score(v, max_w_increase);
@@ -438,8 +446,8 @@ int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
         delete wsd;
     }
 
-    int vincrease = solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains, left, right,
-                          vsd, matching_size_goal, stats);
+    int vincrease = solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains, left, right, completed_bidomain ? nullptr : &bd,
+                          completed_bidomain ? nullptr : vsd, matching_size_goal, stats);
     if (vincrease > max_w_increase)
         max_w_increase = vincrease;
 
@@ -502,7 +510,7 @@ vector<VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *st
             auto domains_copy = domains;
             vector<VtxPair> current;
             solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains_copy, left_copy, right_copy,
-                  nullptr, goal, stats);
+                  nullptr, nullptr, goal, stats);
             if (incumbent.size() == goal || stats->abort_due_to_timeout)
                 break;
             if (!arguments.quiet)
@@ -510,7 +518,7 @@ vector<VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *st
         }
     } else {
         vector<VtxPair> current;
-        solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains, left, right, nullptr, 1, stats);
+        solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains, left, right, nullptr, nullptr, 1, stats);
     }
 
     if (arguments.timeout && double(clock() - stats->start) / CLOCKS_PER_SEC > arguments.timeout) {
