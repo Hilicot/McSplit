@@ -331,6 +331,11 @@ int main(int argc, char **argv) {
                      });
     std::cout << "Sorting done" << std::endl;
 
+    if(arguments.save_search_data) {
+        // save graph and graph mapping in dataset
+        save_graph_mappings(vv0, vv1, arguments.filename1, arguments.filename2);
+    }
+
 #if 0
     int idx;
     for(idx=0;idx<vv0.size();idx++)
@@ -397,6 +402,10 @@ int main(int argc, char **argv) {
 #endif
     if (!check_sol(g0, g1, solution))
         cout << "*** Error: Invalid solution" << endl;
+
+    if(arguments.save_search_data) {
+        close_streams();
+    }
 
     cout << "Solution size " << solution.size() << std::endl;
     for (int i = 0; i < g0.n; i++)

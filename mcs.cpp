@@ -416,8 +416,10 @@ int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
 
         if (increase > max_w_increase)
             max_w_increase = increase;
-        if (arguments.save_search_data)
-            wsd->record_score(w, increase);
+        if (arguments.save_search_data) {
+            unsigned int new_bound = current.size() + calc_bound(result.new_domains);
+            wsd->record_score(w, increase, new_bound);
+        }
 
         // check termination conditions
         if (stats->abort_due_to_timeout) // hard timeout (else it gets stuck when trying to end the program gracefully)

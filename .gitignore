@@ -8,3 +8,4 @@ analyze_ascii_edgelists.ipynb
 results
 mcsplit-dal
 run_ascii*
+dataset/*

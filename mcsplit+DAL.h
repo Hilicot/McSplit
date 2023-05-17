@@ -20,5 +20,6 @@
 #include "reward.h"
 #include "mcs.h"
 #include "heuristics/SortHeuristic.h"
+#include "save_search_data/save_search_data.h"
 
 #endif //MCSPLITDAL_MCSPLIT_DAL_H
