@@ -6,6 +6,7 @@
 string filepath = "dataset/";
 vector<int> g0_mapping, g1_mapping;
 ofstream v_file, w_file;
+int count_v = 0, count_w = 0;
 
 SearchData::SearchData(const Bidomain &bidomain, const vector<int> &left, const vector<int> &right,
                        search_data_type type) {
@@ -55,7 +56,7 @@ void SearchDataW::record_score(int vtx, int score, int bound) {
 }
 
 /**
- * Remap the vertex vector according to the mapping, and destroy the vector in the process
+ * Remap the vertex vector according to the mapping, and destroy the vector in the process (for efficiency)
  */
 vector<int> &&remap_vertex_vector(vector<int> &v, const vector<int> &mapping) {
     for (int &i: v)
@@ -67,8 +68,11 @@ vector<int> &&remap_vertex_vector(vector<int> &v, const vector<int> &mapping) {
 void SearchData::serialize(ofstream &out) {
     int num_v = (int) left_bidomain.size();
     out.write(reinterpret_cast<char *>(&num_v), sizeof(int));
-    out.write(reinterpret_cast<char *>(remap_vertex_vector(this->left_bidomain, g0_mapping).data()), num_v * (int)sizeof(int));
-    out.write(reinterpret_cast<char *>(vertex_scores.data()), num_v * (int)sizeof(int));
+    int num_s = (int) vertex_scores.size();
+    out.write(reinterpret_cast<char *>(&num_s), sizeof(int));
+    out.write(reinterpret_cast<char *>(remap_vertex_vector(this->left_bidomain, g0_mapping).data()),
+              num_v * (int) sizeof(int));
+    out.write(reinterpret_cast<char *>(vertex_scores.data()), num_s * (int) sizeof(int));
 }
 
 void SearchDataW::serialize(ofstream &out) {
@@ -76,18 +80,23 @@ void SearchDataW::serialize(ofstream &out) {
     int _v = g0_mapping[v];
     out.write(reinterpret_cast<char *>(&_v), sizeof(int));
     int num_w = (int) right_bidomain.size();
-    out.write(reinterpret_cast<char *>(&num_w), sizeof(int));
-    out.write(reinterpret_cast<char *>(remap_vertex_vector(this->right_bidomain, g1_mapping).data()), num_w * (int)sizeof(int));
-    out.write(reinterpret_cast<char *>(bounds.data()), num_w * (int)sizeof(int));
+    assert (num_w == (int) vertex_scores.size());
+    out.write(reinterpret_cast<char *>(remap_vertex_vector(this->right_bidomain, g1_mapping).data()),
+              num_w * (int) sizeof(int));
+    out.write(reinterpret_cast<char *>(bounds.data()), num_w * (int) sizeof(int));
 }
 
 
 void SearchData::save() {
     serialize(v_file);
+    // ATTENTION: here the bidomain vector is already destroyed! (so don't try to print it)
+    count_v++;
 }
 
 void SearchDataW::save() {
     serialize(w_file);
+    // ATTENTION: here the bidomain vector is already destroyed! (so don't try to print it)
+    count_w++;
 }
 
 
@@ -126,9 +135,16 @@ void save_graph_mappings(const vector<int> &_g0_mapping, const vector<int> &_g1_
     //save mappings
     g0_mapping = ref(_g0_mapping);
     g1_mapping = ref(_g1_mapping);
+
+    // copy graph files to folder if they are not already there
+    if (!std::filesystem::exists(filepath + "g0"))
+        std::filesystem::copy(g0_name, filepath + "g0");
+    if (!std::filesystem::exists(filepath + "g1"))
+        std::filesystem::copy(g1_name, filepath + "g1");
 }
 
 void close_streams() {
     v_file.close();
     w_file.close();
+    cout << "Saved " << count_v << " v data and " << count_w << " w data" << endl;
 }

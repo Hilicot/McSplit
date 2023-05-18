@@ -417,7 +417,7 @@ int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
         if (increase > max_w_increase)
             max_w_increase = increase;
         if (arguments.save_search_data) {
-            unsigned int new_bound = current.size() + calc_bound(result.new_domains);
+            int new_bound = calc_bound(result.new_domains);
             wsd->record_score(w, increase, new_bound);
         }
 
