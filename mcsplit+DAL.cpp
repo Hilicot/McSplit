@@ -404,6 +404,7 @@ int main(int argc, char **argv) {
         cout << "*** Error: Invalid solution" << endl;
 
     if(arguments.save_search_data) {
+        save_solution(solution);
         close_streams();
     }
 

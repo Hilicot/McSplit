@@ -143,6 +143,19 @@ void save_graph_mappings(const vector<int> &_g0_mapping, const vector<int> &_g1_
         std::filesystem::copy(g1_name, filepath + "g1");
 }
 
+void save_solution(vector<VtxPair> &solution){
+    ofstream solution_file(filepath + "solution", ios::binary | ios::out);
+    int num_v = (int) solution.size();
+    solution_file.write(reinterpret_cast<char *>(&num_v), sizeof(int));
+    for (VtxPair &p: solution) {
+        int _v = p.v;
+        int _w = p.w;
+        solution_file.write(reinterpret_cast<char *>(&_v), sizeof(int));
+        solution_file.write(reinterpret_cast<char *>(&_w), sizeof(int));
+    }
+    solution_file.close();
+}
+
 void close_streams() {
     v_file.close();
     w_file.close();

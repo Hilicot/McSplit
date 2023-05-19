@@ -47,6 +47,8 @@ public:
 
 void save_graph_mappings(const vector<int> &_g0_mapping, const vector<int> &_g1_mapping, const string& g0_name, const string& g1_name);
 
+void save_solution(vector<VtxPair> &solution);
+
 void close_streams();
 
 #endif //MCSPLITDAL_SAVE_SEARCH_DATA_H
