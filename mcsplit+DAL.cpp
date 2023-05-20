@@ -333,7 +333,10 @@ int main(int argc, char **argv) {
 
     if(arguments.save_search_data) {
         // save graph and graph mapping in dataset
-        save_graph_mappings(vv0, vv1, arguments.filename1, arguments.filename2);
+        if (stats->swapped_graphs)
+            save_graph_mappings(vv0, vv1, arguments.filename2, arguments.filename1, g0, g1);
+        else
+            save_graph_mappings(vv0, vv1, arguments.filename1, arguments.filename2, g0, g1);
     }
 
 #if 0

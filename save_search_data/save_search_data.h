@@ -1,9 +1,8 @@
 #ifndef MCSPLITDAL_SAVE_SEARCH_DATA_H
 #define MCSPLITDAL_SAVE_SEARCH_DATA_H
 
-#include <boost/archive/binary_oarchive.hpp>
+#include <cassert>
 #include "../mcs.h"
-
 
 class SearchData {
 public:
@@ -45,7 +44,7 @@ public:
     void serialize(ofstream &out) override;
 };
 
-void save_graph_mappings(const vector<int> &_g0_mapping, const vector<int> &_g1_mapping, const string& g0_name, const string& g1_name);
+void save_graph_mappings(const vector<int> &_g0_mapping, const vector<int> &_g1_mapping, const string& g0_name, const string& g1_name, Graph &g0, Graph &g1);
 
 void save_solution(vector<VtxPair> &solution);
 

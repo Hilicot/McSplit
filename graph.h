@@ -4,6 +4,7 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <vector>
+#include <string>
 
 struct Node {
     unsigned int id;
@@ -28,6 +29,8 @@ struct Graph {
     int computeNumEdges();
 
     float computeDensity();
+
+    void export_to_ascii(std::string filename);
 };
 
 Graph induced_subgraph(struct Graph &g, std::vector<int> vv);

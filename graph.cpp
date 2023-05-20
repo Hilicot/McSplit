@@ -5,7 +5,7 @@
 
 #include <algorithm>
 #include <iostream>
-#include <string>
+#include <fstream>
 
 constexpr int BITS_PER_UNSIGNED_INT(CHAR_BIT * sizeof(unsigned int));
 
@@ -271,6 +271,21 @@ struct Graph readASCIIGraph(char *filename) {
     fclose(f);
     return g;
 }
+
+void Graph::export_to_ascii(std::string filename) {
+    std::ofstream myfile;
+    myfile.open(filename);
+    myfile << this->n << " " << (int) this->adjlist.size() << std::endl;
+
+    for (auto node: this->adjlist) {
+        for (auto neighbour: node.adjNodes) {
+            myfile << node.id << " " << neighbour.id << std::endl;
+        }
+    }
+
+    myfile.close();
+}
+
 
 struct Graph readGraph(char *filename, char format, bool directed, bool edge_labelled, bool vertex_labelled) {
     struct Graph g(0);
