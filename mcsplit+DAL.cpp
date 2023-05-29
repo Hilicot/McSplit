@@ -59,6 +59,7 @@ void set_default_arguments() {
     arguments.save_search_data = false;
     arguments.sort_heuristic = new SortHeuristic::Degree();
     arguments.initialize_rewards = false; // if false, rewards are initialized to 0, else to sort_heuristic
+    arguments.dynamic_heuristic = false;
     arguments.mcs_method = RL_DAL;
     arguments.swap_policy = McSPLIT_SD;
     arguments.reward_policy.current_reward_policy = 1; // set starting policy (0:RL/LL, 1:DAL)
