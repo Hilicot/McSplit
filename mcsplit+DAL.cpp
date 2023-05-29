@@ -50,13 +50,14 @@ void set_default_arguments() {
     arguments.edge_labelled = false;
     arguments.vertex_labelled = false;
     arguments.big_first = false;
-    arguments.filename1 = NULL;
-    arguments.filename2 = NULL;
+    arguments.filename1 = nullptr;
+    arguments.filename2 = nullptr;
     arguments.timeout = 0;
     arguments.max_iter = -1;
     arguments.random_start = false;
     arguments.arg_num = 0;
     arguments.save_search_data = false;
+    arguments.save_search_data_folder = "dataset_pairs";
     arguments.sort_heuristic = new SortHeuristic::Degree();
     arguments.initialize_rewards = false; // if false, rewards are initialized to 0, else to sort_heuristic
     arguments.dynamic_heuristic = false;
@@ -432,6 +433,9 @@ int main(int argc, char **argv) {
     cout << "  -switch_policy:          " << arguments.reward_policy.switch_policy << endl;
     cout << "  -dal_reward_policy:      " << arguments.reward_policy.dal_reward_policy << endl;
     cout << "  -neighbor_overlap:       " << arguments.reward_policy.neighbor_overlap << endl;
+    cout << "  -dynamic_heuristic:      " << arguments.dynamic_heuristic << endl;
+    cout << "  -save_search_data:       " << arguments.save_search_data << endl;
+    cout << "  -save_search_data_folder:" << arguments.save_search_data_folder << endl;
 
     cout << endl;
 

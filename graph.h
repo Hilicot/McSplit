@@ -31,10 +31,14 @@ struct Graph {
     float computeDensity();
 
     void export_to_ascii(std::string filename) const;
+
+    Graph subgraph(const std::vector<int> &arr, int start, int len) const;
 };
 
 Graph induced_subgraph(struct Graph &g, std::vector<int> vv);
 
 Graph readGraph(char *filename, char format, bool directed, bool edge_labelled, bool vertex_labelled);
+
+void add_edge(Graph &g, int v, int w, bool directed, unsigned int val);
 
 #endif

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <set>
+#include <algorithm>
 #include "mcs.h"
 #include "reward.h"
 #include "save_search_data/save_search_data.h"
@@ -34,6 +35,39 @@ void show(const vector <VtxPair> &current, const vector <Bidomain> &domains,
     }
     cout << "\n"
          << std::endl;
+}
+
+vector<int> *sort_bidomain(const Graph &g, const vector<int> arr, int start, int len) {
+    // create set of ids
+    std::unordered_map<unsigned int, int> ids;
+    for (int i = 0; i < len; i++) {
+        ids[arr[i+start]] = i;
+    }
+
+    // create subgraph
+    Graph bdg = Graph(len);
+    for (int i = 0; i < len; i++) {
+        for (const auto& neighbour: g.adjlist[arr[i+start]].adjNodes ) {
+            if (neighbour.id > arr[i+start]) {
+                try{
+                    int index = ids.at(neighbour.id);
+                    add_edge(bdg, i, index, false, 1);
+                } catch (const std::out_of_range& oor) {
+                    // neighbour is not in the subgraph, so we don't add it
+                }
+            }
+        }
+    }
+
+    // sort subgraph
+    vector<int> bdg_order = arguments.sort_heuristic->sort(bdg);
+    vector<int> *vv = new vector<int>(len);
+    for (int i = 0; i < len; i++)
+        (*vv)[i] = arr[i + start];
+    std::stable_sort(vv->begin(), vv->end(), [&](int i, int j) {
+        return bdg_order[ids[i]] < bdg_order[ids[j]];
+    });
+    return vv;
 }
 
 int calc_bound(const vector <Bidomain> &domains) {
@@ -360,7 +394,7 @@ int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
         return 0;
 
     // select bidomain
-    int bd_idx = select_bidomain(domains, left, rewards, current.size(), current_bd);
+    int bd_idx = select_bidomain(domains, left, rewards, (int) current.size(), current_bd);
     if (bd_idx == -1) { // In the MCCS case, there may be nothing we can branch on
         return 0;
     }
@@ -375,33 +409,47 @@ int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
     int tmp_idx;
 
     // select vertex v (vertex with max reward)
-    if (arguments.random_start && incumbent.size() == 0) // First vertex can optionally be random
-        tmp_idx = rand() % bd.left_len;
-    else if (arguments.dynamic_heuristic) {
-        cerr << "Dynamic heuristic not implemented yet" << endl;
-        exit(-1);
-        //Graph bdg = g0.subgraph(bd.l, );
-    } else
-        tmp_idx = selectV_index(left, rewards, bd.l, bd.left_len);
-    v = left[bd.l + tmp_idx];
+    if (arguments.dynamic_heuristic) {
+        vector<int> *vv = sort_bidomain(g0, left, bd.l, bd.left_len);
+        tmp_idx = selectV_index(*vv, rewards, 0, bd.left_len);
+        v = (*vv)[tmp_idx];
+        delete vv;
+    } else {
+        if (arguments.random_start && incumbent.empty()) // First vertex can optionally be random
+            tmp_idx = rand() % bd.left_len;
+        else
+            tmp_idx = selectV_index(left, rewards, bd.l, bd.left_len);
+        v = left[bd.l + tmp_idx];
+    }
     if (arguments.save_search_data)
         if (std::find(vsd->left_bidomain.begin(), vsd->left_bidomain.end(), v) == vsd->left_bidomain.end()) exit(1);
     remove_vtx_from_array(left, bd.l, bd.left_len, tmp_idx); // remove v from bidomain
     rewards.update_policy_counter(false);
 
     // save stats to save the search data
-
     SearchDataW *wsd = nullptr;
     if (arguments.save_search_data)
         wsd = new SearchDataW(bd, left, right, v);
 
-    // Try assigning v to each vertex w in the colour class beginning at bd.r, in turn
+    // init variables for w iteration
     vector<int> wselected(g1.n, 0);
     bd.right_len--;
     int max_w_increase = 0;
+    vector<int> *ww;
+    if (arguments.dynamic_heuristic) {
+        ww = sort_bidomain(g1, right, bd.r, bd.right_len + 1);
+    }
+
+    // W iteration: Try assigning v to each vertex w in the colour class beginning at bd.r, in turn
     for (int i = 0; i <= bd.right_len; i++) {
-        tmp_idx = selectW_index(g0, g1, current, right, rewards, v, bd.r, bd.right_len + 1, wselected);
-        w = right[bd.r + tmp_idx];
+        if (arguments.dynamic_heuristic) {
+            tmp_idx = selectW_index(g0, g1, current, *ww, rewards, v, 0, bd.right_len + 1, wselected);
+            w = (*ww)[tmp_idx];
+            delete ww;
+        } else {
+            tmp_idx = selectW_index(g0, g1, current, right, rewards, v, bd.r, bd.right_len + 1, wselected);
+            w = right[bd.r + tmp_idx];
+        }
         wselected[w] = 1;
         std::swap(right[bd.r + tmp_idx], right[bd.r + bd.right_len]);
         rewards.update_policy_counter(false);
@@ -528,7 +576,8 @@ vector <VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *s
         }
     } else {
         vector <VtxPair> current;
-        solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains, left, right, nullptr, nullptr, 1,
+        solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains, left, right, nullptr, nullptr,
+              1,
               stats);
     }
 
