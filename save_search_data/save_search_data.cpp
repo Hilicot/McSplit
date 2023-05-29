@@ -3,7 +3,7 @@
 #include <fstream>
 #include <filesystem>
 
-string filepath = "dataset/";
+string filepath;
 vector<int> g0_mapping, g1_mapping;
 ofstream v_file, w_file;
 int count_v = 0, count_w = 0;
@@ -107,7 +107,8 @@ string get_basename(string path) {
     return path.substr(lastindex + 1, path.size());
 }
 
-void save_graph_mappings(const vector<int> &_g0_mapping, const vector<int> &_g1_mapping, const string& g0_name, const string& g1_name, Graph &g0, Graph &g1) {
+void save_graph_mappings(const vector<int> &_g0_mapping, const vector<int> &_g1_mapping, const string& g0_name, const string& g1_name, const Graph &g0, const Graph &g1, const string &save_search_data_folder) {
+    filepath = save_search_data_folder;
     string g0_basename = get_basename(g0_name);
     string g1_basename = get_basename(g1_name);
     string folder;
@@ -136,16 +137,18 @@ void save_graph_mappings(const vector<int> &_g0_mapping, const vector<int> &_g1_
     g1_mapping = ref(_g1_mapping);
 
     // copy graph files to folder if they are not already there
-    if (!std::filesystem::exists(filepath + "g0"))
+    if (!std::filesystem::exists(filepath + "g0")){
         if (arguments.ascii)
             std::filesystem::copy(g0_name, filepath + "g0");
         else
             g0.export_to_ascii(filepath + "g0");
-    if (!std::filesystem::exists(filepath + "g1"))
+    }
+    if (!std::filesystem::exists(filepath + "g1")){
         if (arguments.ascii)
             std::filesystem::copy(g1_name, filepath + "g1");
         else
             g1.export_to_ascii(filepath + "g1");
+    }
 }
 
 void save_solution(vector<VtxPair> &solution){
