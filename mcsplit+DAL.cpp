@@ -36,7 +36,7 @@ static struct argp_option options[] = {
         {"random_start",         'r', 0,                   0, "Set random start to true"},
         {"dal_reward_policy",    'D', "dal_reward_policy", 0, "Specify the dal reward policy (num, max, avg)"},
         {"sort_heuristic",       's', "sort_heuristic",    0, "Specify the sort heuristic (degree, pagerank, betweenness, closeness, clustering, katz)"},
-        {"save_pairs",           'S', 0,                   0, "Save vertex v and pairs (v,w) as dataset of the GNN model"},
+        {"save_pairs",           'S', "save_pair_folder",  0, "Save vertex v and pairs (v,w) as dataset of the GNN model. Specify folder to save data to"},
         {0}};
 
 void set_default_arguments() {
@@ -124,6 +124,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             break;
         case 'S':
             arguments.save_search_data = true;
+            arguments.save_search_data_folder = string(arg);
             break;
         case 'D':
             if (string(arg) == "num")
@@ -335,9 +336,9 @@ int main(int argc, char **argv) {
     if(arguments.save_search_data) {
         // save graph and graph mapping in dataset
         if (stats->swapped_graphs)
-            save_graph_mappings(vv0, vv1, arguments.filename2, arguments.filename1, g0, g1);
+            save_graph_mappings(vv0, vv1, arguments.filename2, arguments.filename1, g0, g1, arguments.save_search_data_folder);
         else
-            save_graph_mappings(vv0, vv1, arguments.filename1, arguments.filename2, g0, g1);
+            save_graph_mappings(vv0, vv1, arguments.filename1, arguments.filename2, g0, g1, arguments.save_search_data_folder);
     }
 
 #if 0

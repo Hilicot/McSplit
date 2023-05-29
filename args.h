@@ -84,6 +84,7 @@ EXTERN struct arguments {
     int max_iter;
     int arg_num;
     int save_search_data;
+    string save_search_data_folder;
     SwapPolicy swap_policy;
     RewardPolicy reward_policy;
 } arguments;

@@ -30,7 +30,7 @@ struct Graph {
 
     float computeDensity();
 
-    void export_to_ascii(std::string filename);
+    void export_to_ascii(std::string filename) const;
 };
 
 Graph induced_subgraph(struct Graph &g, std::vector<int> vv);

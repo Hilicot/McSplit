@@ -272,7 +272,7 @@ struct Graph readASCIIGraph(char *filename) {
     return g;
 }
 
-void Graph::export_to_ascii(std::string filename) {
+void Graph::export_to_ascii(std::string filename) const{
     std::ofstream myfile;
     myfile.open(filename);
     myfile << this->n << " " << (int) this->adjlist.size() << std::endl;

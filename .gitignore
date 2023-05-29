@@ -10,3 +10,4 @@ mcsplit-dal
 run_ascii*
 dataset/*
 datasets_test
+test*
