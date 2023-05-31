@@ -1,7 +1,6 @@
 #include <iostream>
 #include <algorithm>
 #include <set>
-#include <algorithm>
 #include "mcs.h"
 #include "reward.h"
 #include "save_search_data/save_search_data.h"
@@ -13,17 +12,16 @@ using namespace std;
 const int short_memory_threshold = 1e5;
 const int long_memory_threshold = 1e9;
 
-void show(const vector <VtxPair> &current, const vector <Bidomain> &domains,
+void show(const vector<VtxPair> &current, const vector<Bidomain> &domains,
           const vector<int> &left, const vector<int> &right, Stats *stats) {
     cout << "Nodes: " << stats->nodes << std::endl;
     cout << "Length of current assignment: " << current.size() << std::endl;
     cout << "Current assignment:";
-    for (unsigned int i = 0; i < current.size(); i++) {
-        cout << "  (" << current[i].v << " -> " << current[i].w << ")";
+    for (auto i: current) {
+        cout << "  (" << i.v << " -> " << i.w << ")";
     }
     cout << std::endl;
-    for (unsigned int i = 0; i < domains.size(); i++) {
-        struct Bidomain bd = domains[i];
+    for (auto bd: domains) {
         cout << "Left  ";
         for (int j = 0; j < bd.left_len; j++)
             cout << left[bd.l + j] << " ";
@@ -37,22 +35,22 @@ void show(const vector <VtxPair> &current, const vector <Bidomain> &domains,
          << std::endl;
 }
 
-vector<int> *sort_bidomain(const Graph &g, const vector<int> arr, int start, int len) {
+vector<int> *sort_bidomain(const Graph &g, const vector<int> &arr, int start, int len) {
     // create set of ids
     std::unordered_map<unsigned int, int> ids;
     for (int i = 0; i < len; i++) {
-        ids[arr[i+start]] = i;
+        ids[arr[i + start]] = i;
     }
 
     // create subgraph
     Graph bdg = Graph(len);
     for (int i = 0; i < len; i++) {
-        for (const auto& neighbour: g.adjlist[arr[i+start]].adjNodes ) {
-            if (neighbour.id > arr[i+start]) {
-                try{
+        for (const auto &neighbour: g.adjlist[arr[i + start]].adjNodes) {
+            if (neighbour.id > arr[i + start]) {
+                try {
                     int index = ids.at(neighbour.id);
                     add_edge(bdg, i, index, false, 1);
-                } catch (const std::out_of_range& oor) {
+                } catch (const std::out_of_range &oor) {
                     // neighbour is not in the subgraph, so we don't add it
                 }
             }
@@ -61,7 +59,7 @@ vector<int> *sort_bidomain(const Graph &g, const vector<int> arr, int start, int
 
     // sort subgraph
     vector<int> bdg_order = arguments.sort_heuristic->sort(bdg);
-    vector<int> *vv = new vector<int>(len);
+    auto *vv = new vector<int>(len);
     for (int i = 0; i < len; i++)
         (*vv)[i] = arr[i + start];
     std::stable_sort(vv->begin(), vv->end(), [&](int i, int j) {
@@ -70,7 +68,7 @@ vector<int> *sort_bidomain(const Graph &g, const vector<int> arr, int start, int
     return vv;
 }
 
-int calc_bound(const vector <Bidomain> &domains) {
+int calc_bound(const vector<Bidomain> &domains) {
     int bound = 0;
     for (const Bidomain &bd: domains) {
         bound += std::min(bd.left_len, bd.right_len);
@@ -100,7 +98,7 @@ int selectV_index(const vector<int> &arr, const Rewards &rewards, int start_idx,
     return idx;
 }
 
-int select_bidomain(const vector <Bidomain> &domains, const vector<int> &left, const Rewards &rewards,
+int select_bidomain(const vector<Bidomain> &domains, const vector<int> &left, const Rewards &rewards,
                     int current_matching_size, Bidomain *previous_bd) {
     // Select the bidomain with the smallest max(leftsize, rightsize), breaking
     // ties on the smallest vertex index in the left set
@@ -181,47 +179,48 @@ int remove_matched_vertex(vector<int> &arr, int start, int len, const vector<int
 
 // multiway is for directed and/or labelled graphs
 NewBidomainResult
-generate_new_domains(const vector <Bidomain> &d, int bd_idx, vector <VtxPair> &current, vector<int> &g0_matched,
+generate_new_domains(const vector<Bidomain> &d, int bd_idx, vector<VtxPair> &current, vector<int> &g0_matched,
                      vector<int> &g1_matched,
                      vector<int> &left, vector<int> &right,
                      const Graph &g0, const Graph &g1, int v, int w,
                      bool multiway, Stats *stats) {
-    current.push_back(VtxPair(v, w));
+    current.emplace_back(v, w);
     g0_matched[v] = 1;
     g1_matched[w] = 1;
 
     int leaves_match_size = 0, v_leaf, w_leaf;
-    for (unsigned int i = 0, j = 0; i < g0.leaves[v].size() && j < g1.leaves[w].size();) {
-        if (g0.leaves[v][i].first < g1.leaves[w][j].first)
-            i++;
-        else if (g0.leaves[v][i].first > g1.leaves[w][j].first)
-            j++;
-        else {
-            const vector<int> &leaf0 = g0.leaves[v][i].second;
-            const vector<int> &leaf1 = g1.leaves[w][j].second;
-            for (unsigned int p = 0, q = 0; p < leaf0.size() && q < leaf1.size();) {
-                if (g0_matched[leaf0[p]])
-                    p++;
-                else if (g1_matched[leaf1[q]])
-                    q++;
-                else {
-                    v_leaf = leaf0[p], w_leaf = leaf1[q];
-                    p++, q++;
-                    current.push_back(VtxPair(v_leaf, w_leaf));
-                    g0_matched[v_leaf] = 1;
-                    g1_matched[w_leaf] = 1;
-                    leaves_match_size++;
+    if (!arguments.syn_solution) {
+        for (unsigned int i = 0, j = 0; i < g0.leaves[v].size() && j < g1.leaves[w].size();) {
+            if (g0.leaves[v][i].first < g1.leaves[w][j].first)
+                i++;
+            else if (g0.leaves[v][i].first > g1.leaves[w][j].first)
+                j++;
+            else {
+                const vector<int> &leaf0 = g0.leaves[v][i].second;
+                const vector<int> &leaf1 = g1.leaves[w][j].second;
+                for (unsigned int p = 0, q = 0; p < leaf0.size() && q < leaf1.size();) {
+                    if (g0_matched[leaf0[p]])
+                        p++;
+                    else if (g1_matched[leaf1[q]])
+                        q++;
+                    else {
+                        v_leaf = leaf0[p], w_leaf = leaf1[q];
+                        p++, q++;
+                        current.emplace_back(v_leaf, w_leaf);
+                        g0_matched[v_leaf] = 1;
+                        g1_matched[w_leaf] = 1;
+                        leaves_match_size++;
+                    }
                 }
+                i++, j++;
             }
-            i++, j++;
         }
     }
 
     /*if(leaves_match_size > 0)
         cout << "leaves_match_size: " << leaves_match_size << endl;*/
 
-    vector <Bidomain> new_d;
-    new_d.reserve(d.size());
+    vector<Bidomain> new_d;
     int l, r, j = -1;
     int temp, total = 0;
     int unmatched_left_len, unmatched_right_len;
@@ -229,7 +228,7 @@ generate_new_domains(const vector <Bidomain> &d, int bd_idx, vector <VtxPair> &c
         j++;
         l = old_bd.l;
         r = old_bd.r;
-        if (leaves_match_size > 0 && old_bd.is_adjacent == false) {
+        if (leaves_match_size > 0 && !old_bd.is_adjacent) {
             unmatched_left_len = remove_matched_vertex(left, l, old_bd.left_len, g0_matched);
             unmatched_right_len = remove_matched_vertex(right, r, old_bd.right_len, g1_matched);
         } else {
@@ -250,7 +249,7 @@ generate_new_domains(const vector <Bidomain> &d, int bd_idx, vector <VtxPair> &c
         total += temp;
 
         if (left_len_noedge && right_len_noedge)
-            new_d.push_back({l + left_len, r + right_len, left_len_noedge, right_len_noedge, old_bd.is_adjacent});
+            new_d.emplace_back(l + left_len, r + right_len, left_len_noedge, right_len_noedge, old_bd.is_adjacent);
         if (multiway && left_len && right_len) {
             auto l_begin = std::begin(left) + l;
             auto r_begin = std::begin(right) + r;
@@ -276,11 +275,11 @@ generate_new_domains(const vector <Bidomain> &d, int bd_idx, vector <VtxPair> &c
                     do {
                         r++;
                     } while (r < r_top && g1.get(w, right[r]) == left_label);
-                    new_d.push_back({lmin, rmin, l - lmin, r - rmin, true});
+                    new_d.emplace_back(lmin, rmin, l - lmin, r - rmin, true);
                 }
             }
         } else if (left_len && right_len) {
-            new_d.push_back({l, r, left_len, right_len, true});
+            new_d.emplace_back(l, r, left_len, right_len, true);
         }
     }
 
@@ -288,7 +287,7 @@ generate_new_domains(const vector <Bidomain> &d, int bd_idx, vector <VtxPair> &c
     return result;
 }
 
-int getNeighborOverlapScores(const Graph &g0, const Graph &g1, const vector <VtxPair> &current, int v, int w) {
+int getNeighborOverlapScores(const Graph &g0, const Graph &g1, const vector<VtxPair> &current, int v, int w) {
     int overlap_v = 0;
     int overlap_w = 0;
     // get number of selected neighbors of v
@@ -309,7 +308,7 @@ int getNeighborOverlapScores(const Graph &g0, const Graph &g1, const vector <Vtx
     return overlap_v + overlap_w;
 }
 
-int selectW_index(const Graph &g0, const Graph &g1, const vector <VtxPair> &current, const vector<int> &arr,
+int selectW_index(const Graph &g0, const Graph &g1, const vector<VtxPair> &current, const vector<int> &arr,
                   const Rewards &rewards, const int v, int start_idx, int len,
                   const vector<int> &wselected) {
     int idx = -1;
@@ -348,23 +347,19 @@ void remove_vtx_from_array(vector<int> &arr, int start_idx, int &len, int remove
     std::swap(arr[start_idx + remove_idx], arr[start_idx + len]);
 }
 
-void remove_bidomain(vector <Bidomain> &domains, int idx) {
+void remove_bidomain(vector<Bidomain> &domains, int idx) {
     domains[idx] = domains[domains.size() - 1];
     domains.pop_back();
 }
 
 int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
-          vector <VtxPair> &incumbent,
-          vector <VtxPair> &current, vector<int> &g0_matched, vector<int> &g1_matched,
-          vector <Bidomain> &domains, vector<int> &left, vector<int> &right, Bidomain *current_bd, SearchData *vsd,
-          unsigned int matching_size_goal,
+          vector<VtxPair> &incumbent,
+          vector<VtxPair> &current, vector<int> &g0_matched, vector<int> &g1_matched,
+          vector<Bidomain> &domains, vector<int> &left, vector<int> &right, Bidomain *current_bd, SearchData *vsd,
+          unsigned int matching_size_goal, const vector<int> *vv0, const vector<int> *vv1, const int syn_sol_size,
           Stats *stats) {
-    bool is_first_v_iter = false;
+    bool is_first_v_iter = false, is_v_promising = true;
 
-    // FIXME we have 2 timeout systems, remove one of them (the first seems to not work...)
-    /*if (arguments.timeout && double(clock() - stats->start) / CLOCKS_PER_SEC > arguments.timeout) {
-        return;
-    }*/
     if (stats->abort_due_to_timeout)
         return 0;
     stats->nodes++;
@@ -414,90 +409,143 @@ int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
         tmp_idx = selectV_index(*vv, rewards, 0, bd.left_len);
         v = (*vv)[tmp_idx];
         delete vv;
-    } else {
+    } else if(arguments.syn_solution){
+        bool found_v = false;
+        for (int i = bd.l; i < bd.l + bd.left_len; i++) {
+            if ((*vv0)[left[i]] < syn_sol_size) {
+                bool found_w = false;
+                for (int j=bd.r; j<bd.r+bd.right_len; j++) {
+                    if ((*vv1)[right[j]] == (*vv0)[left[i]]) {
+                        found_w = true;
+                        break;
+                    }
+                }
+                if (found_w) {
+                    tmp_idx = i - bd.l;
+                    v = left[i];
+                    found_v = true;
+                    break;
+                }
+            }
+        }
+        if (!found_v) {
+            v = left[bd.l];
+            is_v_promising = false;
+            if (arguments.save_search_data)
+                vsd->record_score(v, 0);
+        }
+    }else {
         if (arguments.random_start && incumbent.empty()) // First vertex can optionally be random
             tmp_idx = rand() % bd.left_len;
         else
             tmp_idx = selectV_index(left, rewards, bd.l, bd.left_len);
         v = left[bd.l + tmp_idx];
     }
-    if (arguments.save_search_data)
+
+    if (arguments.save_search_data) {
         if (std::find(vsd->left_bidomain.begin(), vsd->left_bidomain.end(), v) == vsd->left_bidomain.end()) exit(1);
+    }
+    if (arguments.syn_solution && (*vv0)[v] >= syn_sol_size) {
+        is_v_promising = false;
+        if (arguments.save_search_data)
+            vsd->record_score(v, 0);
+    }
     remove_vtx_from_array(left, bd.l, bd.left_len, tmp_idx); // remove v from bidomain
     rewards.update_policy_counter(false);
 
     // save stats to save the search data
     SearchDataW *wsd = nullptr;
-    if (arguments.save_search_data)
+    if (arguments.save_search_data && is_v_promising) {
         wsd = new SearchDataW(bd, left, right, v);
+    }
 
     // init variables for w iteration
     vector<int> wselected(g1.n, 0);
     bd.right_len--;
     int max_w_increase = 0;
-    vector<int> *ww;
-    if (arguments.dynamic_heuristic) {
-        ww = sort_bidomain(g1, right, bd.r, bd.right_len + 1);
-    }
 
-    // W iteration: Try assigning v to each vertex w in the colour class beginning at bd.r, in turn
-    for (int i = 0; i <= bd.right_len; i++) {
+    if (is_v_promising) {
+        vector<int> *ww;
         if (arguments.dynamic_heuristic) {
-            tmp_idx = selectW_index(g0, g1, current, *ww, rewards, v, 0, bd.right_len + 1, wselected);
-            w = (*ww)[tmp_idx];
-            delete ww;
-        } else {
-            tmp_idx = selectW_index(g0, g1, current, right, rewards, v, bd.r, bd.right_len + 1, wselected);
-            w = right[bd.r + tmp_idx];
+            ww = sort_bidomain(g1, right, bd.r, bd.right_len + 1);
         }
-        wselected[w] = 1;
-        std::swap(right[bd.r + tmp_idx], right[bd.r + bd.right_len]);
-        rewards.update_policy_counter(false);
+
+        // W iteration: Try assigning v to each vertex w in the colour class beginning at bd.r, in turn
+        for (int i = 0; i <= bd.right_len; i++) {
+            if (arguments.dynamic_heuristic) {
+                tmp_idx = selectW_index(g0, g1, current, *ww, rewards, v, 0, bd.right_len + 1, wselected);
+                w = (*ww)[tmp_idx];
+                delete ww;
+            } else {
+                tmp_idx = selectW_index(g0, g1, current, right, rewards, v, bd.r, bd.right_len + 1, wselected);
+                w = right[bd.r + tmp_idx];
+            }
+            wselected[w] = 1;
+            std::swap(right[bd.r + tmp_idx], right[bd.r + bd.right_len]);
+            rewards.update_policy_counter(false);
 #if (DEBUG)
-        if(stats->nodes % 1 == 0 && stats->nodes > 00)
-            std::cout << "nodes: " << stats->nodes << ", v: " << v << ", w: " << w << ", size: " << current.size() << ", dom: "<< bd.left_len << " " << bd.right_len << std::endl;
+            if(stats->nodes % 1 == 0 && stats->nodes > 00)
+                std::cout << "nodes: " << stats->nodes << ", v: " << v << ", w: " << w << ", size: " << current.size() << ", dom: "<< bd.left_len << " " << bd.right_len << std::endl;
 #endif
-        unsigned int cur_len = current.size();
-        auto result = generate_new_domains(domains, bd_idx, current, g0_matched, g1_matched, left, right, g0, g1,
-                                           v, w,
-                                           arguments.directed || arguments.edge_labelled, stats);
-        auto new_domains = result.new_domains;
-        rewards.update_rewards(result, v, w, stats);
+            int increase = 0;
+            bool is_w_promising = true;
+            if (arguments.syn_solution) {
+                if ((*vv1)[w] >= syn_sol_size ||
+                    (*vv0)[v] != (*vv1)[w]) { // if this vertex is not in the synthetic solution, save it and prune
+                    is_w_promising = false;
+                }
+            }
 
-        stats->dl++;
-        int increase = solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, new_domains, left, right,
-                             &bd, nullptr, matching_size_goal, stats);
-        increase += result.increase; // count the current pair (v,w) and eventual leaves
+            int new_bound = 0;
+            unsigned int cur_len = current.size();
+            if (is_w_promising) {
+                auto result = generate_new_domains(domains, bd_idx, current, g0_matched, g1_matched, left, right, g0,
+                                                   g1,
+                                                   v, w,
+                                                   arguments.directed || arguments.edge_labelled, stats);
+                auto new_domains = result.new_domains;
+                rewards.update_rewards(result, v, w, stats);
 
-        if (increase > max_w_increase)
-            max_w_increase = increase;
-        if (arguments.save_search_data) {
-            int new_bound = calc_bound(result.new_domains);
-            wsd->record_score(w, increase, new_bound);
+                stats->dl++;
+                increase = solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, new_domains, left,
+                                 right,
+                                 &bd, nullptr, matching_size_goal, vv0, vv1, syn_sol_size, stats);
+                increase += result.increase; // count the current pair (v,w) and eventual leaves
+
+
+                if (increase > max_w_increase)
+                    max_w_increase = increase;
+                if (arguments.save_search_data) {
+                    new_bound = calc_bound(result.new_domains);
+                }
+            }
+            if (arguments.save_search_data) {
+                wsd->record_score(w, increase, new_bound);
+            }
+
+            // check termination conditions
+            if (stats->abort_due_to_timeout) // hard timeout (else it gets stuck when trying to end the program gracefully)
+                return max_w_increase;
+            if (arguments.max_iter > 0 && stats->nodes > arguments.max_iter) {
+                return max_w_increase;
+            }
+
+            while (current.size() > cur_len) {
+                VtxPair pr = current.back();
+                current.pop_back();
+                g0_matched[pr.v] = 0;
+                g1_matched[pr.w] = 0;
+            }
         }
-
-        // check termination conditions
-        if (stats->abort_due_to_timeout) // hard timeout (else it gets stuck when trying to end the program gracefully)
-            return max_w_increase;
-        if (arguments.max_iter > 0 && stats->nodes > arguments.max_iter) {
-            return max_w_increase;
-        }
-
-        while (current.size() > cur_len) {
-            VtxPair pr = current.back();
-            current.pop_back();
-            g0_matched[pr.v] = 0;
-            g1_matched[pr.w] = 0;
-        }
+        bd.right_len++;
     }
-    bd.right_len++;
     bool completed_bidomain = false;
     if (bd.left_len == 0) {
         remove_bidomain(domains, bd_idx);
         completed_bidomain = true;
     }
 
-    if (arguments.save_search_data) {
+    if (arguments.save_search_data && is_v_promising) {
         vsd->record_score(v, max_w_increase);
         wsd->save();
         delete wsd;
@@ -505,7 +553,7 @@ int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
 
     int vincrease = solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains, left, right,
                           completed_bidomain ? nullptr : &bd,
-                          completed_bidomain ? nullptr : vsd, matching_size_goal, stats);
+                          completed_bidomain ? nullptr : vsd, matching_size_goal, vv0, vv1, syn_sol_size, stats);
     if (vincrease > max_w_increase)
         max_w_increase = vincrease;
 
@@ -517,7 +565,10 @@ int solve(const Graph &g0, const Graph &g1, Rewards &rewards,
     return max_w_increase;
 }
 
-vector <VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *stats) {
+vector<VtxPair>
+mcs(const Graph &g0, const Graph &g1, void *rewards_p, const vector<int> *vv0, const vector<int> *vv1,
+    const int syn_sol_size,
+    Stats *stats) {
     vector<int> left;  // the buffer of vertex indices for the left partitions
     vector<int> right; // the buffer of vertex indices for the right partitions
 
@@ -526,13 +577,13 @@ vector <VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *s
 
     Rewards &rewards = *(Rewards *) rewards_p;
 
-    auto domains = vector < Bidomain > {};
+    auto domains = vector<Bidomain>{};
 
     std::set<unsigned int> left_labels;
     std::set<unsigned int> right_labels;
-    for (auto node: g0.adjlist)
+    for (const auto &node: g0.adjlist)
         left_labels.insert(node.label);
-    for (auto node: g1.adjlist)
+    for (const auto &node: g1.adjlist)
         right_labels.insert(node.label);
     std::set<unsigned int> labels; // labels that appear in both graphs
     std::set_intersection(std::begin(left_labels),
@@ -555,10 +606,10 @@ vector <VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *s
 
         int left_len = left.size() - start_l;
         int right_len = right.size() - start_r;
-        domains.push_back({start_l, start_r, left_len, right_len, false});
+        domains.emplace_back(start_l, start_r, left_len, right_len, false);
     }
 
-    vector <VtxPair> incumbent;
+    vector<VtxPair> incumbent;
 
     if (arguments.big_first) {
         for (int k = 0; k < g0.n; k++) {
@@ -566,18 +617,18 @@ vector <VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *s
             auto left_copy = left;
             auto right_copy = right;
             auto domains_copy = domains;
-            vector <VtxPair> current;
+            vector<VtxPair> current;
             solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains_copy, left_copy, right_copy,
-                  nullptr, nullptr, goal, stats);
+                  nullptr, nullptr, goal, vv0, vv1, syn_sol_size, stats);
             if (incumbent.size() == goal || stats->abort_due_to_timeout)
                 break;
             if (!arguments.quiet)
                 cout << "Upper bound: " << goal - 1 << std::endl;
         }
     } else {
-        vector <VtxPair> current;
+        vector<VtxPair> current;
         solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains, left, right, nullptr, nullptr,
-              1,
+              1, vv0, vv1, syn_sol_size,
               stats);
     }
 

@@ -80,6 +80,7 @@ EXTERN struct arguments {
     MCS mcs_method;
     char *filename1;
     char *filename2;
+    char *syn_solution;
     int timeout;
     int max_iter;
     int arg_num;

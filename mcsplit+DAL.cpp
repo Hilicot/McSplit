@@ -1,3 +1,4 @@
+#include <fstream>
 #include "mcsplit+DAL.h"
 
 using namespace std;
@@ -22,22 +23,23 @@ static void fail(std::string msg) {
 static char doc[] = "Find a maximum clique in a graph in DIMACS format\vHEURISTIC can be min_max or min_product or rewards_based or heuristic_based";
 static char args_doc[] = "HEURISTIC FILENAME1 FILENAME2";
 static struct argp_option options[] = {
-        {"quiet",                'q', 0,                   0, "Quiet output"},
-        {"verbose",              'v', 0,                   0, "Verbose output"},
-        {"dimacs",               'd', 0,                   0, "Read DIMACS format"},
-        {"lad",                  'l', 0,                   0, "Read LAD format"},
-        {"ascii",                'A', 0,                   0, "Read ASCII format"},
-        {"connected",            'c', 0,                   0, "Solve max common CONNECTED subgraph problem"},
-        {"directed",             'i', 0,                   0, "Use directed graphs"},
-        {"labelled",             'a', 0,                   0, "Use edge and vertex labels"},
-        {"vertex-labelled-only", 'x', 0,                   0, "Use vertex labels, but not edge labels"},
-        {"big-first",            'b', 0,                   0, "First try to find an induced subgraph isomorphism, then decrement the target size"},
-        {"timeout",              't', "timeout",           0, "Specify a timeout (seconds)"},
-        {"random_start",         'r', 0,                   0, "Set random start to true"},
-        {"dal_reward_policy",    'D', "dal_reward_policy", 0, "Specify the dal reward policy (num, max, avg)"},
-        {"sort_heuristic",       's', "sort_heuristic",    0, "Specify the sort heuristic (degree, pagerank, betweenness, closeness, clustering, katz)"},
-        {"save_pairs",           'S', "save_pair_folder",  0, "Save vertex v and pairs (v,w) as dataset of the GNN model. Specify folder to save data to"},
-        {0}};
+        {"quiet",                'q', nullptr,              0, "Quiet output"},
+        {"verbose",              'v', nullptr,              0, "Verbose output"},
+        {"dimacs",               'd', nullptr,              0, "Read DIMACS format"},
+        {"lad",                  'l', nullptr,              0, "Read LAD format"},
+        {"ascii",                'A', nullptr,              0, "Read ASCII format"},
+        {"connected",            'c', nullptr,              0, "Solve max common CONNECTED subgraph problem"},
+        {"directed",             'i', nullptr,              0, "Use directed graphs"},
+        {"labelled",             'a', nullptr,              0, "Use edge and vertex labels"},
+        {"vertex-labelled-only", 'x', nullptr,              0, "Use vertex labels, but not edge labels"},
+        {"big-first",            'b', nullptr,              0, "First try to find an induced subgraph isomorphism, then decrement the target size"},
+        {"timeout",              't', "timeout",            0, "Specify a timeout (seconds)"},
+        {"random_start",         'r', nullptr,              0, "Set random start to true"},
+        {"dal_reward_policy",    'D', "dal_reward_policy",  0, "Specify the dal reward policy (num, max, avg)"},
+        {"sort_heuristic",       's', "sort_heuristic",     0, "Specify the sort heuristic (degree, pagerank, betweenness, closeness, clustering, katz)"},
+        {"save_pairs",           'S', "save_pair_folder",   0, "Save vertex v and pairs (v,w) as dataset of the GNN model. Specify folder to save data to"},
+        {"synthetic_solution",   'y', "synthetic_solution", 0, "path to the solution if the graphs are part of a synthetic pair"},
+        {nullptr}};
 
 void set_default_arguments() {
     arguments.quiet = false;
@@ -52,6 +54,7 @@ void set_default_arguments() {
     arguments.big_first = false;
     arguments.filename1 = nullptr;
     arguments.filename2 = nullptr;
+    arguments.syn_solution = nullptr;
     arguments.timeout = 0;
     arguments.max_iter = -1;
     arguments.random_start = false;
@@ -153,6 +156,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             else
                 fail("Unknown sort heuristic (try degree, pagerank, betweenness, closeness, clustering, katz)");
             break;
+        case 'y':
+            arguments.syn_solution = arg;
+            break;
         case ARGP_KEY_ARG:
             if (arguments.arg_num == 0) {
                 if (std::string(arg) == "min_max")
@@ -193,27 +199,22 @@ static struct argp argp = {options, parse_opt, args_doc, doc};
 bool check_sol(const Graph &g0, const Graph &g1, const vector<VtxPair> &solution) {
     vector<bool> used_left(g0.n, false);
     vector<bool> used_right(g1.n, false);
-    for (unsigned int i = 0; i < solution.size(); i++)
-    {
+    for (unsigned int i = 0; i < solution.size(); i++) {
         struct VtxPair p0 = solution[i];
-        if (used_left[p0.v] || used_right[p0.w])
-        {
+        if (used_left[p0.v] || used_right[p0.w]) {
             cout << "Used left: " << used_left[p0.v] << endl;
             cout << "Used right: " << used_right[p0.w] << endl;
             return false;
         }
         used_left[p0.v] = true;
         used_right[p0.w] = true;
-        if (g0.adjlist[p0.v].label != g1.adjlist[p0.w].label)
-        {
+        if (g0.adjlist[p0.v].label != g1.adjlist[p0.w].label) {
             cout << g0.adjlist[p0.v].label << " != " << g1.adjlist[p0.w].label << endl;
             return false;
         }
-        for (unsigned int j = i + 1; j < solution.size(); j++)
-        {
+        for (unsigned int j = i + 1; j < solution.size(); j++) {
             struct VtxPair p1 = solution[j];
-            if (g0.get(p0.v, p1.v) != g1.get(p0.w, p1.w))
-            {
+            if (g0.get(p0.v, p1.v) != g1.get(p0.w, p1.w)) {
                 cout << "Edge left (" << p0.v << " -> " << p1.v << ") = " << g0.get(p0.v, p1.v) << endl;
                 cout << "Edge right (" << p0.w << " -> " << p1.w << ") = " << g1.get(p0.w, p1.w) << endl;
                 return false;
@@ -251,6 +252,19 @@ bool swap_graphs(Graph &g0, Graph &g1) {
     }
 }
 
+int read_syn_solution_size(char *filepath) {
+    // read solution size and number of edges from file
+    ifstream file(filepath);
+    if (!file.is_open()) {
+        cerr << "Could not open file " << filepath << endl;
+        exit(1);
+    }
+    int n;
+    file >> n;
+    file.close();
+    return n;
+}
+
 int main(int argc, char **argv) {
     set_default_arguments();
     argp_parse(&argp, argc, argv, 0, 0, 0);
@@ -262,6 +276,9 @@ int main(int argc, char **argv) {
                                 arguments.edge_labelled, arguments.vertex_labelled);
     struct Graph g1 = readGraph(arguments.filename2, format, arguments.directed,
                                 arguments.edge_labelled, arguments.vertex_labelled);
+    int syn_sol_size = -1;
+    if (arguments.syn_solution)
+        syn_sol_size = read_syn_solution_size(arguments.syn_solution);
 
     arguments.reward_policy.reward_switch_policy_threshold = 2 * std::min(g0.n, g1.n);
 
@@ -334,12 +351,15 @@ int main(int argc, char **argv) {
                      });
     std::cout << "Sorting done" << std::endl;
 
-    if(arguments.save_search_data) {
+    if (arguments.save_search_data) {
         // save graph and graph mapping in dataset
         if (stats->swapped_graphs)
-            save_graph_mappings(vv0, vv1, arguments.filename2, arguments.filename1, g0, g1, arguments.save_search_data_folder);
+            save_graph_mappings(vv0, vv1, arguments.filename2, arguments.filename1, g0, g1,
+                                arguments.save_search_data_folder);
         else
-            save_graph_mappings(vv0, vv1, arguments.filename1, arguments.filename2, g0, g1, arguments.save_search_data_folder);
+            save_graph_mappings(vv0, vv1, arguments.filename1, arguments.filename2, g0, g1,
+                                arguments.save_search_data_folder);
+
     }
 
 #if 0
@@ -376,14 +396,14 @@ int main(int argc, char **argv) {
     g1_sorted.pack_leaves();
 
     DoubleQRewards rewards(g0.n, g1.n);
-    if(arguments.initialize_rewards){
+    if (arguments.initialize_rewards) {
         rewards.initialize(g0_deg, g1_deg);
     }
 
     // start clock
     stats->start = clock();
 
-    vector<VtxPair> solution = mcs(g0_sorted, g1_sorted, (void *) &rewards, stats);
+    vector<VtxPair> solution = mcs(g0_sorted, g1_sorted, (void *) &rewards, &vv0, &vv1, syn_sol_size, stats);
 
     // Convert to indices from original, unsorted graphs
     for (auto &vtx_pair: solution) {
@@ -409,7 +429,7 @@ int main(int argc, char **argv) {
     if (!check_sol(g0, g1, solution))
         cout << "*** Error: Invalid solution" << endl;
 
-    if(arguments.save_search_data) {
+    if (arguments.save_search_data) {
         save_solution(solution);
         close_streams();
     }
