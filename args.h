@@ -76,9 +76,11 @@ EXTERN struct arguments {
     Heuristic heuristic;
     SortHeuristic::Base *sort_heuristic;
     bool initialize_rewards;
+    bool dynamic_heuristic;
     MCS mcs_method;
     char *filename1;
     char *filename2;
+    char *syn_solution;
     int timeout;
     int max_iter;
     int arg_num;

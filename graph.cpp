@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unordered_map>
 
 #include <algorithm>
 #include <iostream>
@@ -284,6 +285,30 @@ void Graph::export_to_ascii(std::string filename) const{
     }
 
     myfile.close();
+}
+
+Graph Graph::subgraph(const std::vector<int> &arr, int start, int len) const {
+    Graph subg = Graph(len);
+    // create set of ids
+    std::unordered_map<unsigned int, int> ids;
+    for (int i = 0; i < len; i++) {
+        ids[arr[i+start]] = i;
+    }
+
+    for (int i = 0; i < len; i++) {
+        for (const auto& neighbour: this->adjlist[arr[i+start]].adjNodes ) {
+            if (neighbour.id > arr[i+start]) {
+                try{
+                    int index = ids.at(neighbour.id);
+                    add_edge(subg, i, index, false, 1);
+                } catch (const std::out_of_range& oor) {
+                    // neighbour is not in the subgraph, so we don't add it
+                }
+            }
+        }
+    }
+
+    return subg;
 }
 
 
