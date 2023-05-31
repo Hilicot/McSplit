@@ -11,3 +11,4 @@ run_ascii*
 dataset/*
 datasets_test
 test*
+exported_gnn_pairs

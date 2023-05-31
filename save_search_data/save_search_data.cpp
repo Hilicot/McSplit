@@ -108,7 +108,7 @@ string get_basename(string path) {
 }
 
 void save_graph_mappings(const vector<int> &_g0_mapping, const vector<int> &_g1_mapping, const string& g0_name, const string& g1_name, const Graph &g0, const Graph &g1, const string &save_search_data_folder) {
-    filepath = save_search_data_folder;
+    filepath = save_search_data_folder+"/";
     string g0_basename = get_basename(g0_name);
     string g1_basename = get_basename(g1_name);
     string folder;

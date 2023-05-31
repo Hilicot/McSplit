@@ -44,7 +44,7 @@ public:
     void serialize(ofstream &out) override;
 };
 
-void save_graph_mappings(const vector<int> &_g0_mapping, const vector<int> &_g1_mapping, const string& g0_name, const string& g1_name,const Graph &g0, const Graph &g1, string &save_search_data_folder);
+void save_graph_mappings(const vector<int> &_g0_mapping, const vector<int> &_g1_mapping, const string& g0_name, const string& g1_name,const Graph &g0, const Graph &g1, const string &save_search_data_folder);
 
 void save_solution(vector<VtxPair> &solution);
 
