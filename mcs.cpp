@@ -342,7 +342,7 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
         return;
     stats->nodes++;
     if (arguments.max_iter > 0 && stats->nodes > arguments.max_iter) {
-        cout << "max_iter" << endl;
+        //cout << "max_iter" << endl;
         return;
     }
 
@@ -351,7 +351,7 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
         stats->bestcount = stats->cutbranches + 1;
         stats->bestnodes = stats->nodes;
         if (!arguments.quiet)
-            cout << "Incumbent size: " << incumbent.size() << endl;
+            cout << "Incumbent size: " << incumbent.size() << " after " << stats->nodes << " iterations" << endl;
         stats->bestfind = clock();
 
         rewards.update_policy_counter(true);
@@ -359,6 +359,7 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
 
     // prune branch if upper bound is too small
     unsigned int bound = current.size() + calc_bound(domains);
+    // cout << stats->nodes << ": bound = " << bound << "\tincumbent = " << incumbent.size() << "\tcurrent = " << current.size() << endl;
     if (bound <= incumbent.size() || bound < matching_size_goal) {
         stats->cutbranches++;
         // cout << "nodes: " << stats->nodes  << " pruned" << endl;
@@ -405,6 +406,7 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
                                            v, w,
                                            arguments.directed || arguments.edge_labelled, stats);
         auto new_domains = result.new_domains;
+        // cout << stats->nodes << ": reward = " << result.reward << endl;
         rewards.update_rewards(result, v, w, stats);
 
         stats->dl++;
@@ -423,6 +425,7 @@ void solve(const Graph &g0, const Graph &g1, Rewards &rewards,
     bd.right_len++;
     if (bd.left_len == 0)
         remove_bidomain(domains, bd_idx);
+    //cout << "Going down" << endl;
     solve(g0, g1, rewards, incumbent, current, g0_matched, g1_matched, domains, left, right, matching_size_goal,
           stats);
 }

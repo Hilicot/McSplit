@@ -33,6 +33,7 @@ static struct argp_option options[] = {
         {"vertex-labelled-only", 'x', 0,                   0, "Use vertex labels, but not edge labels"},
         {"big-first",            'b', 0,                   0, "First try to find an induced subgraph isomorphism, then decrement the target size"},
         {"timeout",              't', "timeout",           0, "Specify a timeout (seconds)"},
+        {"max_iter",             'I', "iter",              0, "Specify a timeout (iterations)"},
         {"random_start",         'r', 0,                   0, "Set random start to true"},
         {"dal_reward_policy",    'D', "dal_reward_policy", 0, "Specify the dal reward policy (num, max, avg)"},
         {"sort_heuristic",       's', "sort_heuristic",    0, "Specify the sort heuristic (degree, pagerank, betweenness, closeness, clustering, katz)"},
@@ -115,6 +116,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
             break;
         case 't':
             arguments.timeout = std::stoi(arg);
+            break;
+        case 'I':
+            arguments.max_iter = std::stoi(arg);
             break;
         case 'r':
             arguments.random_start = true;
