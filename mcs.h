@@ -36,6 +36,6 @@ struct NewBidomainResult{
     int increase;
 };
 
-vector<VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, const vector<int> *vv0, const vector<int> *vv1, int syn_sol_size, Stats *stats);
+vector<VtxPair> mcs(const Graph &g0, const Graph &g1, void *rewards_p, Stats *stats);
 
 #endif

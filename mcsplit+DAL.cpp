@@ -403,7 +403,7 @@ int main(int argc, char **argv) {
     // start clock
     stats->start = clock();
 
-    vector<VtxPair> solution = mcs(g0_sorted, g1_sorted, (void *) &rewards, &vv0, &vv1, syn_sol_size, stats);
+    vector<VtxPair> solution = mcs(g0_sorted, g1_sorted, (void *) &rewards, stats);
 
     // Convert to indices from original, unsorted graphs
     for (auto &vtx_pair: solution) {
@@ -430,15 +430,20 @@ int main(int argc, char **argv) {
         cout << "*** Error: Invalid solution" << endl;
 
     if (arguments.save_search_data) {
+        if (arguments.syn_solution) {
+            solution.clear();
+            for (int i = 0; i < syn_sol_size; i++)
+                solution.emplace_back(i, i);
+        }
         save_solution(solution);
         close_streams();
     }
 
     cout << "Solution size " << solution.size() << std::endl;
     for (int i = 0; i < g0.n; i++)
-        for (unsigned int j = 0; j < solution.size(); j++)
-            if (solution[j].v == i)
-                cout << "(" << solution[j].v << " -> " << solution[j].w << ") ";
+        for (auto & j : solution)
+            if (j.v == i)
+                cout << "(" << j.v << " -> " << j.w << ") ";
     cout << std::endl;
 
     cout << "Arguments:" << endl;
